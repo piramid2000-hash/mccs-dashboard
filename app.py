@@ -483,7 +483,7 @@ col4.plotly_chart(fig2, use_container_width=True)
 
 # --- Tabs for Deep Dive ---
 st.markdown("### 🖥️ 하드웨어 공학 검증 뷰 & 역설계 로직 (엔지니어 Q&A 백업용)")
-tab1, tab2, tab3, tab4 = st.tabs(["📉 르 샤틀리에 물질전달 증명", "📈 푸리에 열전달 승온 시간", "⚙️ 시스템 리스크 모니터링", "🧠 TO-BE 파라미터 역추론 (Data to Design)"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📉 르 샤틀리에 물질전달 증명", "📈 푸리에 열전달 승온 시간", "⚙️ 시스템 리스크 모니터링", "🧠 TO-BE 파라미터 역추론 (Data to Design)", "📊 다변수 통합 모니터링"])
 
 with tab1:
     st.subheader("CO₂ 잔류 가스 배출(Sweep) 메커니즘 시뮬레이션")
@@ -571,6 +571,52 @@ with tab4:
             "**+α 기대효과:** 향후 다른 공장/형태의 고객 사이트에서도, 이 엔진에 새로운 기초 데이터와 제약 조건만 넣으면 맞춤형 장비/파라미터를 자동 추천합니다.",
             unsafe_allow_html=True
         )
+
+with tab5:
+    st.subheader("💡 다변수 통합 환경 동역학 (RH, Temp, Pressure)")
+    st.write("반응기 내부의 상대습도(RH), 핵심 코어 온도, 그리고 내부 압력(Pressure)이 시간에 따라 어떻게 안정화되는지 나타내는 통합 차트입니다.")
+    
+    # 1. 시계열 상대습도(RH) 곡선 생성 (설정된 습도 setpoint로 점진적 수렴)
+    rh_arr = steam_rh * (1 - np.exp(-time_arr / 15.0))
+    
+    # 2. 시스템 압력(Pressure) 곡선 생성 (초기 높은 시스템 압력에서 진공펌프 효과로 안정화)
+    pressure_arr = (suction_pressure + bed_dp) + (inlet_pressure - suction_pressure) * np.exp(-time_arr / 10.0)
+    
+    from plotly.subplots import make_subplots
+    
+    # 2중 Y축(Secondary Y-axis) 그래프 생성
+    fig_multi = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 온도 (좌측 Y축)
+    fig_multi.add_trace(
+        go.Scatter(x=time_arr, y=temp_arr, name="🔥 코어 온도 (℃)", line=dict(color='#e74c3c', width=3)),
+        secondary_y=False,
+    )
+    
+    # 물리적 습도 (좌측 Y축)
+    fig_multi.add_trace(
+        go.Scatter(x=time_arr, y=rh_arr, name="💧 내부 상태습도 (%)", line=dict(color='#0ea5e9', width=3, dash='dash')),
+        secondary_y=False,
+    )
+    
+    # 시스템 압력 (우측 Y축)
+    fig_multi.add_trace(
+        go.Scatter(x=time_arr, y=pressure_arr, name="⚙️ 시스템 압력 (bar)", line=dict(color='#334155', width=3, dash='dot')),
+        secondary_y=True,
+    )
+    
+    fig_multi.update_layout(
+        title_text="시간 경과에 따른 핵심 제어 변수(T, RH, P) 통합 모니터링",
+        template="plotly_white", 
+        height=450,
+        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1)
+    )
+    
+    fig_multi.update_xaxes(title_text="공정 경과 시간 (min)")
+    fig_multi.update_yaxes(title_text="온도(℃) / 습도(%)", secondary_y=False)
+    fig_multi.update_yaxes(title_text="압력 (bar)", tickformat=".2f", secondary_y=True)
+    
+    st.plotly_chart(fig_multi, use_container_width=True)
 
 st.markdown("---")
 st.markdown("**(주)쿨어스 프레젠테이션용 MCCS Digital Twin Dashboard** | Data-driven Architecture Designed by *TO-BE Optimization*")
