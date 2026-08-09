@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "paper-search": {
+      "command": "npx",
+      "args": ["-y", "paper-search-mcp-nodejs"],
+      "env": {
+        "//": "API 키가 있으면 아래에 채운다. 키 없이도 Crossref·arXiv·Google Scholar·PubMed·Semantic Scholar·bioRxiv·medRxiv는 동작한다.",
+        "//WOS_API_KEY": "Web of Science — 기관 구독 필요",
+        "//SEMANTIC_SCHOLAR_API_KEY": "선택 — 레이트 한도 상향",
+        "//PUBMED_API_KEY": "선택 — 3req/s 제한 완화",
+        "//ELSEVIER_API_KEY": "ScienceDirect·Scopus",
+        "//SPRINGER_API_KEY": "Springer Metadata API v2"
+      }
+    }
+  }
+}
