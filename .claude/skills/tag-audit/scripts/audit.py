@@ -36,9 +36,15 @@ FORBIDDEN = [
     (r"달성했|보장한다|보장합니다", "달성·보장 단정"),
 ]
 
-# T3: 전력 원단위 주장
+# T2 예외: 규율을 부정형으로 선언하는 문장은 위반이 아니다.
+#   예) "보증값이 아니다", "고장확률 0이 아니라 설계 여유", "완전 차단을 주장하지 않는다"
+NEGATED = re.compile(
+    r"(?:아니다|아님|아니라|없다|않는다|않으며|않고|말라|금지|지양|대신|→)"
+)
+
+# T3: 전력 원단위 주장. 근거는 문서 어디에 있어도 되지만(부록 포함) 위치를 가리켜야 한다.
 POWER = re.compile(r"kWh\s?/\s?Nm³|kWh/Nm3")
-FARADAY_HINT = re.compile(r"패러데이|2,?390\s?Ah|Faraday|검산")
+FARADAY_HINT = re.compile(r"패러데이|2,?390\s?Ah|Faraday|검산|부록\s?B")
 
 # T4: 표준 F 택소노미
 F_STD = {
@@ -48,10 +54,15 @@ F_STD = {
     "F4": ["nh₃", "nh3", "암모니아", "slip", "슬립"],
     "F5": ["membrane", "막 열화", "막열화", "삽입층"],
 }
-# 이름을 붙이는 문맥에서만 검사한다: "F1 Flooding", "F1(범람)", "F1 — 범람", "F1: 범람"
-# "F1→F3 전이", "F3 경계 접근" 같은 서술적 언급은 대상이 아니다.
-F_REF = re.compile(r"\bF([1-5])\s*(?:[(（:：]|—\s|-\s)?\s*([A-Za-z가-힣][^\n,·)）|:—]{0,18})")
-F_NARRATIVE = re.compile(r"F[1-5]\s*[→↔~]|경계|전이|유발|가속|판별|연계|기준|접근")
+# 이름을 '정의'하는 문맥에서만 검사한다: "F1 Flooding(범람)", "F1: Flooding", "F1 — 범람"
+# 뒤따르는 토큰이 잘려 오판하지 않도록, 구분자 직후의 한 낱말만 본다.
+F_REF = re.compile(
+    r"\bF([1-5])\s*(?:[(（:：]|—\s|-\s|\s)\s*([A-Za-z가-힣][A-Za-z가-힣₃²⁻\s]{0,14})"
+)
+F_NARRATIVE = re.compile(
+    r"F[1-5]\s*[→↔~]|경계|전이|유발|가속|판별|연계|기준|접근|착시|만성|급성|지문|signature",
+    re.I,
+)
 
 # T5: UT 번호 범위
 UT_REF = re.compile(r"\bUT-(\d{2})\b")
@@ -69,6 +80,12 @@ SKIP_LINE = re.compile(
     r"^\s*(#{1,6}\s|\||<!--|https?://|\d+\.\s*(부록|경영진|시장|기술|핵심|성능|신뢰성|사업화|로드맵|지식재산|리스크))"
 )
 GLOSSARY_HINT = re.compile(r"용어해설|Glossary|부호의 설명|목차")
+
+# 섹션·표 머리말에서 태그를 한 번 선언하면 그 범위 전체가 커버된다 (SKILL.md 2단계 규칙).
+#   예) "### 2.4 V4.1 기준 성능 (Base) — 이하 전부 [설계목표]"
+SCOPE_DECL = re.compile(r"(?:이하\s?)?(?:전부|모두|전량)\s*" + TAGS)
+HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+TABLE_ROW = re.compile(r"^\s*\|")
 
 
 def iter_files(targets: list[str]) -> list[Path]:
@@ -98,18 +115,36 @@ def audit_file(path: Path) -> list[tuple[int, str, str]]:
     except OSError as exc:
         return [(0, "ERR", f"읽기 실패: {exc}")]
 
+    # 문서 어딘가(부록 포함)에 패러데이 검산이 있으면 T3의 근거로 인정한다.
+    doc_has_faraday = bool(FARADAY_HINT.search("\n".join(lines)))
+
     in_glossary = False
+    tag_scope = False   # 섹션 머리말이 태그를 선언한 범위 안인가
+    table_scope = False  # 표 머리행이 태그를 선언한 표 안인가
     for i, raw in enumerate(lines, 1):
         line = raw.strip()
         if not line:
+            table_scope = False
             continue
         if GLOSSARY_HINT.search(line):
             in_glossary = True
+
+        # 범위 선언 추적
+        if HEADING.match(raw):
+            tag_scope = bool(SCOPE_DECL.search(line) or re.search(TAGS, line))
+        elif SCOPE_DECL.search(line):
+            tag_scope = True
+        if TABLE_ROW.match(raw) and re.search(TAGS, line) and not table_scope:
+            table_scope = True
         if len(line) > 400:  # 압축된 HTML/데이터 줄
             continue
 
-        # T1 — 태그 없는 수치
-        if not SKIP_LINE.match(line) and not in_glossary:
+        # T1 — 태그 없는 수치 (범위 선언·금지목록 나열 구간은 제외)
+        listing_ctx = re.search(r"금지|사용하지\s?않|쓰지\s?않|위반|폐기", line) or re.search(
+            r"금지사항|금지 표현|사용하지 않는다", " ".join(lines[max(0, i - 14):i])
+        )
+        if not SKIP_LINE.match(line) and not in_glossary and not tag_scope \
+                and not table_scope and not listing_ctx:
             nums = NUM_UNIT.findall(line)
             if nums and not re.search(TAGS, line):
                 sample = ", ".join(f"{a}{b}" for a, b in nums[:3])
@@ -121,13 +156,18 @@ def audit_file(path: Path) -> list[tuple[int, str, str]]:
         )
         if not listing:
             for pat, label in FORBIDDEN:
-                if re.search(pat, line):
-                    hits.append((i, "T2", f"금지 표현: {label}"))
+                m = re.search(pat, line)
+                if not m:
+                    continue
+                # 표현 뒤 30자 안에 부정어가 오면 규율 선언문이다 (예: "보증값이 아니다")
+                if NEGATED.search(line[m.end():m.end() + 30]):
+                    continue
+                hits.append((i, "T2", f"금지 표현: {label}"))
 
-        # T3 — 전력 원단위 검산
+        # T3 — 전력 원단위 검산 (근거는 부록 등 문서 어디에 있어도 되지만 위치를 가리켜야 한다)
         if POWER.search(line) and not FARADAY_HINT.search(line):
-            ctx = " ".join(lines[max(0, i - 4):i + 3])
-            if not FARADAY_HINT.search(ctx):
+            near = " ".join(lines[max(0, i - 4):i + 3])
+            if not FARADAY_HINT.search(near) and not doc_has_faraday:
                 hits.append((i, "T3", "전력 원단위 주장에 패러데이 검산 근거 없음"))
 
         # T4 — F 택소노미 불일치 (서술적 언급은 제외)
