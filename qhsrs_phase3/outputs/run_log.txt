@@ -1,0 +1,79 @@
+==============================================================================
+FROZEN CELL
+==============================================================================
+  pole face      : 240 x 240 mm
+  magnetic gap   : 30 mm  (water 24 mm + 2 x 3 mm duct)
+  field gain     : B_ECV/B_pole = 0.8272
+  CV_B over ECV  : 6.25 %   (requirement <= 10 %)
+  ECV per cell   : 0.881 L   x3 = 2.644 L
+  gap MMF        : 21079 A-t per tesla of pole B (model path spread 4.1 %)
+  core volume    : 13.39 L   path 0.750 m
+  winding        : Litz 2000x0.20 mm, N=16/coil, N_loop=32, L=2.80 mH
+  I at 50 mT     : 39.8 A rms,  J=0.63 A/mm2
+
+--- feasibility envelope (nanocrystalline core) ---
+  f=   3.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=    6.1 V  Vcap=      0 V  Q=    0.7 kVAr  binds: FS1 core sat
+  f=   7.83 Hz  B_max=  143.89 mT  I= 115.0 A  V=   15.8 V  Vcap=      0 V  Q=    1.8 kVAr  binds: FS1 core sat
+  f=  10.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=   20.2 V  Vcap=      0 V  Q=    2.3 kVAr  binds: FS1 core sat
+  f=  30.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=   60.4 V  Vcap=      0 V  Q=    7.0 kVAr  binds: FS1 core sat
+  f=  50.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=  100.7 V  Vcap=      0 V  Q=   11.6 kVAr  binds: FS1 core sat
+  f= 100.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=   56.4 V  Vcap=    258 V  Q=   23.2 kVAr  binds: FS1 core sat
+  f= 300.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=  260.5 V  Vcap=    344 V  Q=   69.5 kVAr  binds: FS1 core sat
+  f= 500.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=  182.1 V  Vcap=    825 V  Q=  115.9 kVAr  binds: FS1 core sat
+  f=1000.00 Hz  B_max=  143.89 mT  I= 115.0 A  V=  364.2 V  Vcap=   1650 V  Q=  231.7 kVAr  binds: FS1 core sat
+  f=2000.00 Hz  B_max=   72.39 mT  I=  57.9 A  V=  600.0 V  Vcap=   1427 V  Q=  117.3 kVAr  binds: FS3 V>Vmax
+  f=3000.00 Hz  B_max=   73.89 mT  I=  59.1 A  V=  600.0 V  Vcap=   2503 V  Q=  183.3 kVAr  binds: FS3 V>Vmax
+
+--- 50 mT row of the master table ---
+  f=   3.00  I=  40.0 A  V=    2.1 V  Vcap=      0 V  C=   0.000 uF  Q=    0.1 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  0.0 V/m  OK
+  f=   7.83  I=  40.0 A  V=    5.5 V  Vcap=      0 V  C=   0.000 uF  Q=    0.2 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  0.1 V/m  OK
+  f=  10.00  I=  40.0 A  V=    7.0 V  Vcap=      0 V  C=   0.000 uF  Q=    0.3 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  0.1 V/m  OK
+  f=  30.00  I=  40.0 A  V=   21.0 V  Vcap=      0 V  C=   0.000 uF  Q=    0.8 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  0.3 V/m  OK
+  f=  50.00  I=  40.0 A  V=   35.0 V  Vcap=      0 V  C=   0.000 uF  Q=    1.4 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  0.5 V/m  OK
+  f= 100.00  I=  40.0 A  V=   19.6 V  Vcap=     90 V  C= 709.893 uF  Q=    2.8 kVAr  Pcu=  11.8 W  Pcore=     0.0 W  Tcore=  25.0 C  E_w=  1.1 V/m  OK
+  f= 300.00  I=  40.0 A  V=   90.5 V  Vcap=    119 V  C= 177.473 uF  Q=    8.4 kVAr  Pcu=  11.8 W  Pcore=     0.1 W  Tcore=  25.0 C  E_w=  3.2 V/m  OK
+  f= 500.00  I=  40.0 A  V=   63.3 V  Vcap=    287 V  C=  44.368 uF  Q=   14.0 kVAr  Pcu=  11.9 W  Pcore=     0.2 W  Tcore=  25.0 C  E_w=  5.3 V/m  OK
+  f=1000.00  I=  40.0 A  V=  126.6 V  Vcap=    573 V  C=  11.092 uF  Q=   28.0 kVAr  Pcu=  12.1 W  Pcore=     0.7 W  Tcore=  25.0 C  E_w= 10.6 V/m  OK
+  f=2000.00  I=  40.0 A  V=  414.4 V  Vcap=    986 V  C=   3.227 uF  Q=   56.0 kVAr  Pcu=  13.1 W  Pcore=     2.7 W  Tcore=  25.1 C  E_w= 21.3 V/m  OK
+  f=3000.00  I=  40.0 A  V=  406.0 V  Vcap=   1694 V  C=   1.252 uF  Q=   83.9 kVAr  Pcu=  14.8 W  Pcore=     5.9 W  Tcore=  25.2 C  E_w= 31.9 V/m  OK
+
+--- core materials at 50 mT / 3 kHz ---
+  NO electrical steel M350-50A (0.50 mm)             mass   98.4 kg  P50Hz     14.4 W  P3kHz    19239.2 W  Tcore    602.2 C  ~USD     295  OK
+  Thin-gauge NO silicon steel 0.10 mm (10JNEX-class) mass   90.4 kg  P50Hz      2.6 W  P3kHz     2154.2 W  Tcore     89.6 C  ~USD    1989  OK
+  Nanocrystalline FeCuNbSiB ribbon 18 um (FINEMET-cl mass   73.3 kg  P50Hz      0.0 W  P3kHz        5.9 W  Tcore     25.2 C  ~USD    6966  OK
+  MnZn power ferrite (N87-class)                     mass   65.0 kg  P50Hz      0.1 W  P3kHz       70.4 W  Tcore     27.1 C  ~USD    2078  SAT
+
+--- architecture comparison (same gap, same 50 mT target) ---
+  R1 gain=0.458 CV_B=0.107 MMF=   18913 A-t U=178.525 J Q@3kHz=  6730.2 kVAr loops=3  YES - polarity nulls between prong pairs
+  R2 gain=0.820 CV_B=0.066 MMF=    2384 A-t U=  8.375 J Q@3kHz=   315.7 kVAr loops=2  YES - polarity nulls between prong pairs
+  R3 gain=0.830 CV_B=0.064 MMF=    1199 A-t U=  6.245 J Q@3kHz=   235.4 kVAr loops=3  no
+
+--- SUS316L tank ---
+  tau_s=1.2787e-03 s  f_c=124.5 Hz (annealed)  69.5 Hz (cold-worked mu_r=1.8)
+  f=   3.00 |H|=0.9997 (  -0.00 dB) phase=  -1.39 deg  B_out needed for 1 mT inside =      1.0 mT -> tank eddy       0.0 kW
+  f=   7.83 |H|=0.9980 (  -0.02 dB) phase=  -3.62 deg  B_out needed for 1 mT inside =      1.0 mT -> tank eddy       0.0 kW
+  f=  10.00 |H|=0.9968 (  -0.03 dB) phase=  -4.62 deg  B_out needed for 1 mT inside =      1.0 mT -> tank eddy       0.0 kW
+  f=  30.00 |H|=0.9722 (  -0.25 dB) phase= -13.63 deg  B_out needed for 1 mT inside =      1.0 mT -> tank eddy       0.0 kW
+  f=  50.00 |H|=0.9279 (  -0.65 dB) phase= -22.02 deg  B_out needed for 1 mT inside =      1.1 mT -> tank eddy       0.1 kW
+  f= 100.00 |H|=0.7796 (  -2.16 dB) phase= -39.06 deg  B_out needed for 1 mT inside =      1.3 mT -> tank eddy       0.4 kW
+  f= 300.00 |H|=0.3832 (  -8.33 dB) phase= -68.30 deg  B_out needed for 1 mT inside =      2.6 mT -> tank eddy       3.7 kW
+  f= 500.00 |H|=0.2415 ( -12.34 dB) phase= -77.40 deg  B_out needed for 1 mT inside =      4.1 mT -> tank eddy      10.2 kW
+  f=1000.00 |H|=0.1234 ( -18.17 dB) phase= -85.67 deg  B_out needed for 1 mT inside =      8.1 mT -> tank eddy      40.8 kW
+  f=2000.00 |H|=0.0619 ( -24.16 dB) phase= -91.95 deg  B_out needed for 1 mT inside =     16.1 mT -> tank eddy     163.2 kW
+  f=3000.00 |H|=0.0412 ( -27.71 dB) phase= -95.88 deg  B_out needed for 1 mT inside =     24.3 mT -> tank eddy     367.3 kW
+
+--- hydraulics ---
+  v=0.00 m/s Q=  0.00 m3/h Re=      0 static       dP=     0.0 Pa Ppump=    0.0 W  pass=   inf s turnover=    inf s  water +0.000 K/h
+  v=0.25 m/s Q=  5.18 m3/h Re=  10866 turbulent    dP=    25.5 Pa Ppump=  261.9 W  pass=  2.45 s turnover=  694.4 s  water +0.226 K/h
+  v=0.50 m/s Q= 10.37 m3/h Re=  21731 turbulent    dP=    85.7 Pa Ppump=  524.1 W  pass=  1.22 s turnover=  347.2 s  water +0.452 K/h
+  v=1.00 m/s Q= 20.74 m3/h Re=  43463 turbulent    dP=   288.3 Pa Ppump= 1050.3 W  pass=  0.61 s turnover=  173.6 s  water +0.906 K/h
+  v=2.00 m/s Q= 41.47 m3/h Re=  86925 turbulent    dP=   969.8 Pa Ppump= 2114.9 W  pass=  0.31 s turnover=   86.8 s  water +1.824 K/h
+
+--- dose bookkeeping (V_ECV=2.64 L into 1000 L, v=0.5 m/s) ---
+  run   1 h ->   10.4 passes, cumulative exposure     9.5 s,  D_B(50mT)=      476 mT.s
+  run   4 h ->   41.5 passes, cumulative exposure    38.1 s,  D_B(50mT)=     1904 mT.s
+  run   8 h ->   82.9 passes, cumulative exposure    76.1 s,  D_B(50mT)=     3807 mT.s
+  run  24 h ->  248.8 passes, cumulative exposure   228.4 s,  D_B(50mT)=    11421 mT.s
+  run  48 h ->  497.7 passes, cumulative exposure   456.9 s,  D_B(50mT)=    22843 mT.s
+
+CSV written to /home/user/mccs-dashboard/qhsrs_phase3/outputs

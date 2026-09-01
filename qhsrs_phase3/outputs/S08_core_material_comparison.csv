@@ -1,0 +1,5 @@
+material,mu_r,B_sat_T,lam_um,mass_kg,P_core_50Hz_W,P_core_3kHz_W,T_core_3kHz_C,cost_USD,machinability,B_leg_margin,anchor
+NO electrical steel M350-50A (0.50 mm),4000.0,2.03,500.0,98.350848,14.43680163069877,19239.185301301815,602.1755590390544,295.052544,excellent (EDM/stamped),OK,"P(1.5 T, 50 Hz) = 3.50 W/kg (grade designation), rho=7650"
+Thin-gauge NO silicon steel 0.10 mm (10JNEX-class),3500.0,1.8,100.0,90.39600000000002,2.638737571252074,2154.201464252313,89.6260439275694,1988.7120000000004,"good, fragile handling",OK,"P(1.0 T, 400 Hz) = 9.0 W/kg (thin-gauge 6.5%Si class), rho=7490"
+Nanocrystalline FeCuNbSiB ribbon 18 um (FINEMET-class),30000.0,1.23,18.0,73.3212,0.0028088110173867297,5.903735666530983,25.17711206999593,6965.514,"poor: wound cores only, brittle",OK,"P(0.2 T, 20 kHz) ~ 10 kW/m3 (FeCuNbSiB ribbon class)"
+MnZn power ferrite (N87-class),2200.0,0.39,1000000.0,64.9512,0.12339563517198104,70.37756489670325,27.111326946901098,2078.4384,"brittle, ground cores only",SAT,"P(0.2 T, 100 kHz, 25 C) ~ 400 kW/m3 (MnZn power ferrite class)"
