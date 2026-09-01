@@ -455,8 +455,21 @@ def do08():
         ln(ax, 12.35, yy - 0.40, 12.35, yy + 0.40)  # 커패시터
         ln(ax, 12.70, yy - 0.40, 12.70, yy + 0.40)
         ln(ax, 12.70, yy, 14.0, yy)
+    # 우회(무보상) 분기
+    ln(ax, 10.2, 3.0, 10.9, 3.0)
+    circ(ax, 10.9, 3.0, 0.09, lw=LW_T); circ(ax, 11.65, 3.0, 0.09, lw=LW_T)
+    ln(ax, 10.9, 3.0, 11.55, 3.42)
+    ln(ax, 11.65, 3.0, 14.0, 3.0)
+    ax.text(12.2, 2.55, "우회", fontsize=FS_TXT, ha="center")
+    ln(ax, 10.2, 3.0, 10.2, 4.0)
     num(ax, "155", (11.28, 8.42), (10.0, 10.35), ha="right")
     num(ax, "154", (12.53, 8.35), (13.1, 10.35), ha="left")
+    tbox(ax, 12.4, 0.5, 3.0, 1.1, "대역 전환 제어부")
+    ax.text(15.5, 1.65, "156", fontsize=FS_NUM, ha="left", va="bottom")
+    ln(ax, 13.9, 1.6, 13.9, 2.35); arr(ax, (13.9, 2.35), (13.9, 2.9))
+    tbox(ax, 16.4, 0.5, 3.0, 1.1, "임피던스 동정부")
+    ax.text(16.4, 1.65, "157", fontsize=FS_NUM, ha="left", va="bottom")
+    arr(ax, (16.4, 1.05), (15.4, 1.05))
     # 코일 (인덕터 기호) 및 노출 셀
     ln(ax, 14.6, 9.1, 15.3, 9.1)
     for k in range(4):
@@ -477,7 +490,8 @@ def do08():
     ln(ax, 7.5, 7.0, 3.9, 7.0); arr(ax, (4.4, 7.0), (3.9, 7.0))
     tbox(ax, 5.6, 1.0, 5.4, 1.6, "제3 계층 수중 자기 센서\n및 동기 복조부")
     ax.text(5.6, 2.75, "163", fontsize=FS_NUM, ha="left", va="bottom")
-    ln(ax, 11.0, 1.8, 17.0, 1.8); ln(ax, 17.0, 1.8, 17.0, 4.0)
+    ln(ax, 11.0, 1.8, 11.7, 1.8); ln(ax, 11.7, 1.8, 11.7, 4.0)
+    ln(ax, 11.7, 4.0, 15.0, 4.0)
     ln(ax, 5.6, 1.8, 1.95, 1.8); arr(ax, (1.95, 1.8), (1.95, 5.4))
     save(fig, "DO08_driver")
 
@@ -567,7 +581,7 @@ def do10():
 # ===========================================================================
 def do11():
     """정자속밀도 폐루프 제어 블록도"""
-    fig, ax = newfig(9.6, 4.4, (0, 19.2), (0, 8.8), 11)
+    fig, ax = newfig(9.6, 4.6, (0, 19.2), (0, 9.2), 11)
     y = 5.4
     circ(ax, 1.5, y, 0.45)
     ln(ax, 1.05, y, 1.95, y, lw=LW_T); ln(ax, 1.5, y - 0.45, 1.5, y + 0.45, lw=LW_T)
@@ -586,8 +600,16 @@ def do11():
     arr(ax, (13.9, y), (14.6, y))
     arr(ax, (17.5, y), (18.9, y))
     num_plain(ax, "B", (18.5, y + 0.55), fs=FS_NUM)
-    tbox(ax, 6.0, 7.2, 6.4, 1.3, "앞먹임 : I* = B* / k(형상) · 전달계수", ref="173")
-    ln(ax, 9.2, 7.2, 9.2, 6.6); ln(ax, 9.2, 6.6, 6.4, 6.6)
+    tbox(ax, 5.2, 7.2, 5.0, 1.3, "앞먹임 : I* = B* / k(f,T)")
+    ax.text(5.2, 8.55, "173", fontsize=FS_NUM, ha="left", va="bottom")
+    tbox(ax, 11.0, 7.0, 3.4, 1.7, "공간 전달계수\n동정부 175\n변수 감지 176")
+    ax.text(14.5, 8.7, "175", fontsize=FS_NUM, ha="left", va="bottom")
+    arr(ax, (11.0, 7.85), (10.2, 7.85))
+    ln(ax, 12.7, 7.0, 12.7, 6.3); arr(ax, (12.7, 6.3), (12.7, 6.3))
+    tbox(ax, 1.5, 0.2, 4.4, 1.0, "공극 변화 검출부 177")
+    ln(ax, 12.7, 6.3, 18.5, 6.3); ln(ax, 18.5, 6.3, 18.5, 0.7)
+    ln(ax, 18.5, 0.7, 5.9, 0.7); arr(ax, (6.6, 0.7), (5.9, 0.7))
+    ln(ax, 7.7, 7.2, 7.7, 6.6); ln(ax, 7.7, 6.6, 6.4, 6.6)
     arr(ax, (6.4, 6.6), (6.4, y + 0.45))
     tbox(ax, 12.6, 0.6, 4.6, 1.5, "제3 계층 센서 163\n동기 복조부 164")
     ax.text(17.3, 2.1, "164", fontsize=FS_NUM, ha="left", va="bottom")
@@ -626,7 +648,7 @@ def do12():
 # ===========================================================================
 def do13():
     """안전 인터록 회로도 (직렬 하드와이어 체인)"""
-    fig, ax = newfig(9.8, 5.5, (0, 19.6), (0, 11.0), 13)
+    fig, ax = newfig(9.8, 5.9, (0, 19.6), (0, 11.8), 13)
     conds = ["과전류", "과전압", "코일 과온", "구동부 과온", "누수",
              "절연 저하", "센서 불일치", "자장 폭주", "통신 두절", "비상 정지"]
 
@@ -638,8 +660,11 @@ def do13():
         ln(ax, x + 0.62, y, x + 1.15, y, lw=LW)
         ax.text(x + 0.25, y - 0.42, f"{i+1}", fontsize=FS_NUM, ha="center", va="top")
         ax.text(x + 0.25, y - 0.98, conds[i], fontsize=FS_TXT, ha="center", va="top")
+        mark = "즉시" if (i + 1) in (1, 2, 5, 6, 10) else "지연"
+        ax.text(x + 0.25, y - 1.62, "[%s]" % mark, fontsize=FS_TXT - 0.6,
+                ha="center", va="top")
 
-    y1, y2 = 9.3, 6.1
+    y1, y2 = 10.1, 6.5
     ln(ax, 0.7, y1, 1.35, y1)
     for i in range(5):
         contact(1.9 + i * 3.0, y1, i)
@@ -654,7 +679,7 @@ def do13():
     ln(ax, 1.35, y2, 0.7, y2)
     circ(ax, 0.7, y1, 0.13, lw=LW)                       # 전원 단자
     ln(ax, 0.83, y1, 1.35, y1)
-    num(ax, "181", (2.2, y1 + 0.20), (2.6, 10.4), ha="left")
+    num(ax, "181", (2.2, y1 + 0.20), (2.6, 11.2), ha="left")
     ln(ax, 0.7, y2, 0.7, 2.2)                            # 체인 종단 -> 안전 릴레이
     arr(ax, (0.7, 2.2), (1.7, 2.2))
     tbox(ax, 1.7, 1.4, 3.6, 1.6, "안전 릴레이\n(2 채널)")
@@ -664,10 +689,14 @@ def do13():
     ax.text(6.95, 3.1, "183", fontsize=FS_NUM, ha="left", va="bottom")
     arr(ax, (10.7, 2.2), (12.5, 2.2))
     tbox(ax, 12.5, 1.4, 3.2, 1.6, "전력 증폭부")
+    tbox(ax, 16.4, 3.4, 3.0, 2.2, "Dwell 적분 필터 184\n과도 마스킹부 185\n(지연 조건에만\n적용)")
     ax.text(12.35, 3.1, "152", fontsize=FS_NUM, ha="left", va="bottom")
     ax.text(0.7, 0.45,
+            "[즉시] 조건에는 어떠한 지연도 두지 아니한다. [지연] 조건에만 Dwell 적분 필터(184)를 적용하며, "
+            "그 지연은 복조 갱신 횟수로 규정한다.\n"
             "제어 소프트웨어 경보는 통보 전용이며, 어떠한 소프트웨어 경로도 인에이블 접점을 "
-            "유지시킬 수 없다. 무전압 시 차단되는 구조이다.", fontsize=FS_TXT, va="center")
+            "유지시킬 수 없다. 무전압 시 차단되는 구조이다.", fontsize=FS_TXT, va="center",
+            linespacing=1.6)
     save(fig, "DO13_interlock")
 
 
@@ -684,7 +713,9 @@ def do14():
         tbox(ax, ox + 4.2, 4.9, 3.4, 1.3, "동일 항온\n동일 체류시간")
         tbox(ax, ox + 0.4, 2.9, 7.2, 1.5,
              "코일 통전\nB = 설정값" if j == 0 else "코일 통전, 단 바이파일러\n상쇄 권선으로 B ≈ 0")
-        tbox(ax, ox + 0.4, 1.3, 7.2, 1.2, "제3 계층 센서로 매 회차 잔류 자장 측정")
+        tbox(ax, ox + 0.4, 1.3, 7.2, 1.2,
+             "제3 계층 센서로 매 회차 잔류 자장 측정" if j == 0 else
+             "전동 트림 밸브 195 + 차동 온도 193 + 트림 히터 194")
         ax.text(ox + 8.15, 8.4, ref, fontsize=FS_NUM, ha="left", va="bottom")
     # 바이파일러 상쇄 권선 상세
     dx, dy = 12.6, 0.0
@@ -807,3 +838,193 @@ def do18():
     ax.text(0.8, 0.7, "각 관문에서 검증 항목 전 항 통과 및 노출 제어 체적 대 처리 체적비의 재산출을 요구한다.",
             fontsize=FS_TXT, va="center")
     save(fig, "DO18_scaleup")
+
+
+# ===========================================================================
+def do19():
+    """공간 전달계수 동정·보정 및 공극 변화 검출 (블록도)"""
+    fig, ax = newfig(9.8, 5.4, (0, 19.6), (0, 10.8), 19)
+    tbox(ax, 0.5, 8.3, 3.2, 1.5, "주파수·온도\n변수 감지부")
+    ax.text(0.5, 9.95, "176", fontsize=FS_NUM, ha="left", va="bottom")
+    tbox(ax, 0.5, 5.9, 3.2, 1.5, "제3 계층\n수중 자기 센서")
+    ax.text(0.5, 7.55, "163", fontsize=FS_NUM, ha="left", va="bottom")
+    tbox(ax, 5.0, 6.9, 4.6, 2.9,
+         "공간 전달계수 동정부\n\n"
+         "k(f,T) = k0 x\n[ 1 + a_f (f/f_ref)^2 + a_T (T - T_ref) ]")
+    ax.text(5.0, 9.95, "175", fontsize=FS_NUM, ha="left", va="bottom")
+    arr(ax, (3.7, 9.05), (5.0, 8.9)); arr(ax, (3.7, 6.65), (5.0, 7.4))
+    tbox(ax, 11.0, 7.9, 3.4, 1.6, "체적 평균\n자속밀도 산출")
+    arr(ax, (9.6, 8.7), (11.0, 8.7))
+    tbox(ax, 15.6, 7.9, 3.4, 1.6, "제어부")
+    ax.text(15.6, 9.55, "170", fontsize=FS_NUM, ha="left", va="bottom")
+    arr(ax, (14.4, 8.7), (15.6, 8.7))
+
+    ax.add_patch(Circle((11.9, 5.6), 0.36, ec=K, fc="white", lw=LW))
+    ln(ax, 11.72, 5.6, 12.08, 5.6, lw=LW)
+    ln(ax, 9.6, 7.6, 10.6, 7.6); ln(ax, 10.6, 7.6, 10.6, 5.6)
+    arr(ax, (10.6, 5.6), (11.54, 5.6))
+    ln(ax, 12.7, 8.7, 12.7, 6.6); arr(ax, (12.7, 6.6), (12.26, 5.83))
+    num_plain(ax, "예측", (10.3, 5.15), fs=FS_TXT)
+    num_plain(ax, "실측", (12.95, 7.0), fs=FS_TXT)
+    tbox(ax, 13.4, 4.8, 5.4, 1.6, "공극 변화 검출부\n잔차 > 예측 포락선 -> 경보")
+    ax.text(18.8, 6.45, "177", fontsize=FS_NUM, ha="right", va="bottom")
+    arr(ax, (12.26, 5.6), (13.4, 5.6))
+    tbox(ax, 13.4, 2.4, 5.4, 1.6, "안전부 / 디지털 트윈부")
+    arr(ax, (16.1, 4.8), (16.1, 4.0))
+
+    ax.text(0.5, 4.6,
+            "a_T : 자극편·각부가 요크보다 가열될 때 공극이 좁아지는 양\n"
+            "        = + alpha x L_부재 / g          (alpha : 자심 선팽창계수)\n"
+            "a_f : 적층 두께 방향 와전류에 의한 실효 투자율 저하\n"
+            "        mu_eff/mu = tanh(gd/2)/(gd/2),  g = (1+j)/delta\n"
+            "        자심 자기저항이 전체의 0.1 % 이므로 사실상 무시된다\n\n"
+            "k ∝ 1/g 이므로 잔차의 상대값이 곧 공극 변화의 상대값이다.",
+            fontsize=FS_TXT, va="top", linespacing=1.5)
+    save(fig, "DO19_kdrift")
+
+
+# ===========================================================================
+def do20():
+    """소자 잔여 불확도를 포함한 이조 공진 대역 설계 (그래프)"""
+    import sys as _s, os as _o
+    _s.path.insert(0, _o.path.join(_o.path.dirname(_o.path.abspath(__file__)), "..", "design"))
+    import adaptive as AD, system as SYS, cell as CL, run_all as RA
+    from constants import NANOCRYSTALLINE
+    wc = RA.winding_choice(); L = wc["L"]
+    I = wc["mmf_max"] / (2 * wc["turns"])
+    R = [r for r in RA.master_table(wc, NANOCRYSTALLINE)
+         if r["B_set_mT"] == 50 and r["f_Hz"] == 3000][0]["R_ac_ohm"]
+    d = AD.design_bands(L, I, 600.0)
+    fs = np.logspace(math.log10(3), math.log10(3300), 700)
+    vn, vlo, vhi = [], [], []
+    for f in fs:
+        v0, _ = AD.drive_voltage(f, L, R, I, d["bands"])
+        vn.append(v0)
+        cand = [AD.drive_voltage(f, L, R, I, d["bands"], dc, dl)[0]
+                for dc in (-0.03, 0.0, 0.03) for dl in (-0.02, 0.0, 0.02)]
+        vlo.append(min(cand)); vhi.append(max(cand))
+
+    fig = plt.figure(figsize=(8.2, 5.4))
+    fig.text(0.02, 0.97, "【도 20】", fontsize=10.5, va="top")
+    ax = fig.add_subplot(2, 1, 1)
+    ax.semilogx(fs, vn, color=K, lw=1.5)
+    ax.axhline(600, color=K, lw=1.1, ls="-.")
+    ax.text(3.4, 625, "V_max", fontsize=8.5)
+    ax.axvline(d["f_nocomp"], color=K, lw=0.8, ls=":")
+    ax.text(45, 480, "무보상 구간", fontsize=8.5, ha="center")
+    ax.text(1700, 480, "보상 구간", fontsize=8.5, ha="center")
+    ax.set_xlim(3, 3400); ax.set_ylim(0, 780)
+    ax.set_ylabel("구동 전압 [V rms]", fontsize=9)
+    ax.set_xlabel("주파수 [Hz]  (대수 눈금, 전 대역)", fontsize=9)
+    ax.grid(True, which="both", color="0.82", lw=0.35)
+    ax.tick_params(labelsize=8)
+    for sp in ax.spines.values():
+        sp.set_color(K); sp.set_linewidth(0.9)
+
+    ax2 = fig.add_subplot(2, 1, 2)
+    m = [i for i, f in enumerate(fs) if f >= d["f_nocomp"] * 0.94]
+    fl = [fs[i] for i in m]
+    ax2.plot(fl, [vn[i] for i in m], color=K, lw=1.4)
+    ax2.plot(fl, [vhi[i] for i in m], color=K, lw=0.8, ls="--")
+    ax2.plot(fl, [vlo[i] for i in m], color=K, lw=0.8, ls="--")
+    ax2.axhline(600, color=K, lw=1.1, ls="-.")
+    for i, b_ in enumerate(d["bands"], 1):
+        ax2.axvline(b_.f_lo, color=K, lw=0.7, ls=":")
+        ax2.text(math.sqrt(b_.f_lo * b_.f_hi), 60, "B%d" % i, fontsize=8.5, ha="center")
+        ax2.plot([b_.f_tune], [0], marker="^", ms=5, color=K)
+    ax2.axvline(d["bands"][-1].f_hi, color=K, lw=0.7, ls=":")
+    ax2.set_xlim(d["f_nocomp"] * 0.94, 3300); ax2.set_ylim(0, 780)
+    ax2.set_ylabel("구동 전압 [V rms]", fontsize=9)
+    ax2.set_xlabel("주파수 [Hz]  (선형 눈금, 보상 구간 확대)  ▲ : 대역별 동조점", fontsize=9)
+    ax2.grid(True, color="0.82", lw=0.35)
+    ax2.tick_params(labelsize=8)
+    for sp in ax2.spines.values():
+        sp.set_color(K); sp.set_linewidth(0.9)
+    ax2.text(900, 700, "실선 : 공칭      파선 : 잔여 불확도 C ±3 %, L ±2 % 포락선",
+             fontsize=8.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    save(fig, "DO20_detuning")
+
+
+# ===========================================================================
+def do21():
+    """대조부의 2단 열정합 계통도"""
+    fig, ax = newfig(9.8, 5.2, (0, 19.6), (0, 10.4), 21)
+    # 실험군 유로
+    ln(ax, 1.2, 8.4, 8.6, 8.4)
+    rect(ax, 3.0, 7.9, 1.4, 1.0)
+    num_plain(ax, "140", (3.7, 8.4), fs=FS_NUM)
+    circ(ax, 6.6, 8.4, 0.42, lw=LW_T)
+    num(ax, "193", (6.6, 8.82), (7.4, 10.0), ha="left")
+    ax.text(0.35, 8.4, "실험군", fontsize=FS_TXT, ha="left", va="center")
+    # 대조군 유로
+    ln(ax, 1.2, 4.6, 8.6, 4.6)
+    rect(ax, 3.0, 4.1, 1.4, 1.0, ls="--")
+    num_plain(ax, "192", (3.7, 4.6), fs=FS_NUM)
+    circ(ax, 6.6, 4.6, 0.42, lw=LW_T)
+    ax.text(0.35, 4.6, "대조군", fontsize=FS_TXT, ha="left", va="center")
+    # 전동 트림 밸브
+    poly(ax, [(1.7, 4.25), (2.3, 4.95), (2.3, 4.25), (1.7, 4.95)])
+    ln(ax, 2.0, 4.95, 2.0, 5.7); rect(ax, 1.55, 5.7, 0.9, 0.6)
+    num(ax, "195", (2.0, 6.3), (1.2, 7.1), ha="right")
+    # 차동 온도 -> 제어 -> 트림 히터
+    ln(ax, 6.6, 8.0, 6.6, 6.9); ln(ax, 6.6, 5.0, 6.6, 6.9)
+    ln(ax, 6.6, 6.9, 10.4, 6.9)
+    arr(ax, (10.4, 6.9), (11.2, 6.9))
+    tbox(ax, 11.2, 6.1, 3.6, 1.6, "차동 온도 되먹임\nPI 제어")
+    ln(ax, 13.0, 6.1, 13.0, 3.4); ln(ax, 13.0, 3.4, 9.4, 3.4)
+    arr(ax, (9.4, 3.4), (9.4, 4.1))
+    rect(ax, 8.9, 4.1, 1.0, 1.0, hatch="////")
+    num(ax, "194", (9.9, 4.6), (10.9, 4.0), ha="left")
+    ln(ax, 8.6, 4.6, 8.9, 4.6); ln(ax, 9.9, 4.6, 11.4, 4.6)
+    ln(ax, 8.6, 8.4, 11.4, 8.4)
+    ln(ax, 11.4, 8.4, 11.4, 4.6)
+    ax.text(0.35, 2.4,
+            "제1단 전동 트림 밸브(195) : 유량 비대칭을 10분의 1로 축소\n"
+            "제2단 차동 온도 센서쌍(193) + 트림 히터(194) : 잔차를 이중맹검 한계 이내로 유지\n"
+            "트림 히터는 대조군 측에만 배치한다. 실험군에 발열체를 두면 그 자체가 자기장과\n"
+            "상관된 열원이 되어 열 인공물의 판별이 다시 불가능해진다.",
+            fontsize=FS_TXT, va="top", linespacing=1.5)
+    save(fig, "DO21_sham_thermal")
+
+
+# ===========================================================================
+def do22():
+    """Dwell-time 인터록 시간 동작도"""
+    fig, ax = newfig(9.8, 5.4, (0, 19.6), (0, 10.8), 22)
+    X0, X1 = 3.2, 18.2
+    for y, lab in ((9.2, "계측 불일치"), (7.4, "복조 갱신"), (5.6, "지연 필터 출력"),
+                   (3.8, "인에이블 접점"), (1.8, "즉시 조건")):
+        ln(ax, X0, y, X1, y, lw=LW_T)
+        ax.text(X0 - 0.25, y + 0.3, lab, fontsize=FS_TXT, ha="right", va="center")
+    # 시간축
+    ln(ax, X0, 0.7, X1, 0.7)
+    arr(ax, (X1 - 0.4, 0.7), (X1 + 0.4, 0.7))
+    ax.text(X1 + 0.5, 0.7, "t", fontsize=FS_NUM, va="center")
+    for x, t in ((4.6, "기동"), (8.4, "대역 전환"), (13.2, "영구 고장")):
+        ln(ax, x, 0.55, x, 0.85)
+        ax.text(x, 0.25, t, fontsize=FS_TXT, ha="center")
+        ln(ax, x, 0.85, x, 9.9, lw=0.4, ls=":")
+    # 계측 불일치 : 과도 2회 + 지속 1회
+    for x0, w_ in ((4.4, 0.55), (8.2, 0.5)):
+        poly(ax, [(x0, 9.2), (x0, 9.9), (x0 + w_, 9.9), (x0 + w_, 9.2)], close=False)
+    poly(ax, [(13.0, 9.2), (13.0, 9.9), (17.6, 9.9), (17.6, 9.2)], close=False)
+    # 복조 갱신 눈금
+    for k in range(11):
+        x = 3.6 + k * 1.35
+        ln(ax, x, 7.4, x, 7.95)
+    ax.text(4.9, 7.05, "T = max(3 s, 30/f)", fontsize=FS_TXT)
+    # 지연 필터 출력 : 연속 2회 갱신 후에만 상승
+    poly(ax, [(15.7, 5.6), (15.7, 6.3), (17.6, 6.3), (17.6, 5.6)], close=False)
+    ln(ax, 13.0, 5.35, 13.0, 5.35)
+    leader_bracket(ax, 13.0, 15.7, 6.7, "연속 2회 갱신", up=True)
+    # 인에이블 접점
+    ln(ax, X0, 4.5, 15.7, 4.5); ln(ax, 15.7, 4.5, 15.7, 3.8); ln(ax, 15.7, 3.8, X1, 3.8)
+    ax.text(16.9, 4.2, "차단", fontsize=FS_TXT)
+    # 즉시 조건
+    poly(ax, [(10.6, 1.8), (10.6, 2.5), (10.9, 2.5), (10.9, 1.8)], close=False)
+    ln(ax, X0, 2.5, 10.6, 2.5); ln(ax, 10.6, 2.5, 10.6, 1.8); ln(ax, 10.6, 1.8, X1, 1.8)
+    ax.text(10.95, 2.75, "과전류 등 발생 → 지연 없이 차단", fontsize=FS_TXT)
+    num(ax, "184", (14.4, 6.3), (13.6, 7.9) if False else (11.6, 6.9), ha="right")
+    num(ax, "185", (8.45, 9.55), (8.45, 10.4), ha="left")
+    save(fig, "DO22_dwell")

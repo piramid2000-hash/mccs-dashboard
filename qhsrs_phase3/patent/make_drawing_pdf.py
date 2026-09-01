@@ -26,7 +26,7 @@ def save_hook(fig, name):
 PD.save = save_hook
 import make_patent_figs as M
 M.save = save_hook          # 모듈이 이미 import 한 이름도 교체
-for i in range(1, 19):
+for i in range(1, 23):
     getattr(M, f"do{i:02d}")()
 d = pdf.infodict()
 d["Title"] = "극저주파 자기장 수계 노출 장치 및 그 제어 방법 - 도면"

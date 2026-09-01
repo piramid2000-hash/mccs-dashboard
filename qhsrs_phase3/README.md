@@ -38,6 +38,8 @@ design/           the physics engines — everything the report cites
   metrology.py      sensors, GUM uncertainty budget, Sham detection limit
   doe.py            2^(7-3) resolution IV design, Bayesian sample size, H0-H3
   bom.py            pilot BOM and CAPEX
+  adaptive.py       k(f,T) drift bound, tolerance-robust detuned bank,
+                    sham thermal balancing, condition-specific dwell filter
   run_all.py        master runner -> outputs/*.csv
 figures/          16-figure patent-style package (SVG + PNG)
 outputs/          computed CSV tables
@@ -54,6 +56,16 @@ python3 design/run_all.py            # regenerates outputs/*.csv
 python3 figures/make_figures.py      # regenerates FIG01..FIG16
 python3 report/make_report.py        # regenerates the report from live numbers
 ```
+
+`tests/test_adaptive.py` validates the four adaptive-control extensions: that
+the k(f,T) coefficients follow from thermal expansion and lamination eddy
+models rather than being free parameters; that the detuned resonant bank keeps
+the drive voltage under the amplifier limit for every component-tolerance
+realisation; that bounding the loaded Q at 50 would cost 1.7 kW of damping and
+is therefore rejected; that a 2 % flow asymmetry breaks the double-blind
+temperature limit without the two-stage thermal balance and meets it with 17×
+margin with it; and that the dwell filter is applied only to measurement-
+integrity conditions.
 
 `tests/test_physics.py` validates the field primitive against the
 infinite-sheet limit, the tank model against its own pole, all four core-loss
