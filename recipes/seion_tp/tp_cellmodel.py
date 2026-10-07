@@ -11,12 +11,13 @@ SIG = 5.670e-8
 T0 = 25.0
 
 
-def hot_face(t):
-    # 표 5-1: 최고 780 ℃, 상승 τ 12 s, 감쇠 τ 260 s, 잔류 185 ℃
-    return T0 + (1 - np.exp(-t / 12)) * ((185 - T0) + (780 - 185) * np.exp(-t / 260))
+def hot_face(t, tau_r=None):
+    # 표 5-1: 최고 780 ℃, 상승 τ 12 s, 감쇠 τ 260 s, 잔류 185 ℃ (tau_r: 잔류분 감쇠 시정수, None=유지)
+    res = (185 - T0) * (np.exp(-t / tau_r) if tau_r else 1.0)
+    return T0 + (1 - np.exp(-t / 12)) * (res + (780 - 185) * np.exp(-t / 260))
 
 
-def pad_layers(core_k0, t_core=0.9e-3, compressed=False):
+def pad_layers(core_k0, t_core=0.9e-3, compressed=False, t_core0=0.9e-3):
     """(두께, ρ, cp, k(T)함수, 유기물분율) 리스트. hot face → cell 순."""
     def k_armor(T):  # 세라믹화 420→620 ℃: 0.30 → 0.95
         s = np.clip((T - 420) / 200, 0, 1)
@@ -24,8 +25,8 @@ def pad_layers(core_k0, t_core=0.9e-3, compressed=False):
 
     rho_core = 160.0
     if compressed:  # 변형을 코어가 전담, 질량 보존
-        rho_core *= 0.9e-3 / t_core
-    d_macro = 150e-6 * (t_core / 0.9e-3)
+        rho_core *= t_core0 / t_core
+    d_macro = 150e-6 * (t_core / t_core0)
 
     def k_core(T):  # 고체·기체(보정) + 대형기공 복사 4σ d T³ (0.7 분율)
         Tk = T + 273.15
@@ -41,8 +42,9 @@ def pad_layers(core_k0, t_core=0.9e-3, compressed=False):
 
 
 def simulate(core_k0, cell="lumped", k_cell=0.6, t_core=0.9e-3, compressed=False,
-             t_end=7200.0, dt=0.5, h_c=2000.0, m_cell=90.0, cp_cell=1050.0):
-    layers = pad_layers(core_k0, t_core, compressed)
+             t_end=7200.0, dt=0.5, h_c=2000.0, m_cell=90.0, cp_cell=1050.0, h_loss=0.0, tau_r=None, t_core0=0.9e-3):
+    """h_loss: 인접 셀 후면→주위(25 ℃) 방열 계수 [W/m²K] (쿨링·대류 등가)."""
+    layers = pad_layers(core_k0, t_core, compressed, t_core0)
     # 패드 격자
     xs, rho, cp, kf, worg = [], [], [], [], []
     for L, r, c, k, w in layers:
@@ -90,7 +92,9 @@ def simulate(core_k0, cell="lumped", k_cell=0.6, t_core=0.9e-3, compressed=False
         diag[:-1] += G; diag[1:] += G
         ab[1] = diag; ab[0, 1:] = -G; ab[2, :-1] = -G
         rhs = C / dt * T
-        rhs[0] += G0 * hot_face(t)
+        rhs[0] += G0 * hot_face(t, tau_r)
+        ab[1, -1] += h_loss
+        rhs[-1] += h_loss * T0
         T = solve_banded((1, 1), ab, rhs)
         if s % 20 == 19:
             cell_T = T[npad:]
@@ -100,10 +104,11 @@ def simulate(core_k0, cell="lumped", k_cell=0.6, t_core=0.9e-3, compressed=False
     return sh[:, 0], sh[:, 1], ah
 
 
-def calibrate(target=122.2):
-    lo, hi = 0.005, 0.2
+def calibrate(target=122.2, h_loss=0.0, **kw):
+    """집중용량 셀 최고온도가 target 이 되도록 코어 k0 보정."""
+    lo, hi = 0.0005, 0.3
     for _ in range(25):
         mid = 0.5 * (lo + hi)
-        _, s, _ = simulate(mid, "lumped", dt=1.0)
+        _, s, _ = simulate(mid, "lumped", dt=2.0, h_loss=h_loss, **kw)
         lo, hi = (mid, hi) if s.max() < target else (lo, mid)
     return 0.5 * (lo + hi)
