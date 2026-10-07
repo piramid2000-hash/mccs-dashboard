@@ -1,0 +1,19 @@
+# 세이온연구소 AI 에이전트 도구 스택 (명령어 모음집 v2.0 기준)
+# 설치: bash scripts/install_agent_stack.sh
+arxiv>=2.1
+semanticscholar>=0.8
+pymatgen>=2024.1.1
+rdkit>=2023.9.1
+ase>=3.22
+impedance>=1.7
+pdfplumber>=0.11
+pymupdf>=1.24
+pytesseract>=0.3.10
+chromadb>=0.5
+fastmcp>=2.0
+typst>=0.11
+pypandoc>=1.13
+pandas>=2.1.0
+numpy>=1.26.0
+matplotlib>=3.8.0
+requests>=2.31.0
