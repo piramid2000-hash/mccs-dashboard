@@ -24,6 +24,7 @@ from core.history import HistoryStore                  # noqa: E402
 from core.parser import parse_workbook, to_snapshot    # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
 from core.template import build_finance_template, demo_finance  # noqa: E402
+from core.html_report import build_html            # noqa: E402
 
 st.set_page_config(page_title="원이엔지 경영 대시보드", page_icon="📊", layout="wide", initial_sidebar_state="auto")
 
@@ -168,6 +169,7 @@ with st.sidebar:
     demo = st.toggle("금액 예시로 미리보기", value=False,
                      help="수주·수금 시트가 아직 없을 때 화면 구성을 보기 위한 가상 금액입니다.")
     MOBILE = st.toggle("📱 휴대폰 화면", value=_ua_is_mobile(), help="휴대폰으로 접속하면 자동으로 켜집니다.")
+    share_slot = st.empty()  # 카톡 공유 버튼 (데이터를 읽은 뒤 채움)
     if APP_PASSWORD and st.button("로그아웃"):
         st.session_state.pop("authed", None)
         st.rerun()
@@ -293,6 +295,14 @@ if hide_done:
     table = table[table["상태"] != "완료"]
 names = set(table["공사명"])
 fin = A.finance_summary(wb, asof)
+
+# ------------------------------------------------------------------ 카톡 공유용 HTML (예시 금액은 넣지 않음)
+if not is_demo:
+    share_slot.download_button("📤 카톡 공유용 HTML 받기", build_html(wb, asof, wb_name).encode("utf-8"),
+                               f"업무현황_{asof:%y%m%d}.html", "text/html", use_container_width=True,
+                               help="파일 하나로 된 보고서. 카톡으로 보내면 휴대폰에서 바로 열립니다. 업체 연락처는 빠집니다.")
+else:
+    share_slot.caption("📤 카톡 공유 HTML은 예시 금액을 끄면 받을 수 있습니다.")
 
 # ------------------------------------------------------------------ 헤더
 src_txt = f"{wb_name} · 수정 {wb_mod:%Y-%m-%d %H:%M}"
