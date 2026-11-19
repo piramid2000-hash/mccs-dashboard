@@ -1,0 +1,7 @@
+streamlit>=1.37
+pandas>=2.1
+plotly>=5.18
+openpyxl>=3.1
+# Google Drive 폴더를 API로 직접 읽을 때만 필요
+google-api-python-client>=2.100
+google-auth>=2.23
