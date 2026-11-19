@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import hmac
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -23,7 +25,7 @@ from core.parser import parse_workbook, to_snapshot    # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
 from core.template import build_finance_template, demo_finance  # noqa: E402
 
-st.set_page_config(page_title="원이엔지 경영 대시보드", page_icon="📊", layout="wide")
+st.set_page_config(page_title="원이엔지 경영 대시보드", page_icon="📊", layout="wide", initial_sidebar_state="auto")
 
 # ------------------------------------------------------------------ 스타일 / 색
 SERIES = {"설계·승인": "#2a78d6", "외주 발주→납품": "#eb6834", "설치·시운전": "#1baf7a", "인도 준비": "#eda100"}
@@ -43,6 +45,20 @@ st.markdown("""
 .hdr .meta{color:#52514e;font-size:.85rem}
 .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.78rem;background:#f1f0ec;color:#33322f;margin-right:4px}
 .alert{border-left:4px solid;padding:8px 12px;margin:6px 0;background:#fff;border-radius:6px;font-size:.9rem}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:.4rem 0 1rem}
+.pcard{background:#fff;border:1px solid #e6e5e1;border-left:5px solid;border-radius:10px;padding:10px 12px;margin:8px 0}
+.pcard .t{display:flex;justify-content:space-between;gap:8px;font-weight:700;color:#0b0b0b}
+.pcard .m{font-size:.84rem;color:#52514e;margin-top:3px}
+.bar{height:6px;background:#eceae6;border-radius:3px;margin-top:6px;overflow:hidden}
+.bar>i{display:block;height:100%;background:#2a78d6;border-radius:3px}
+@media (max-width:640px){
+  .block-container{padding:3.2rem 0.7rem 3rem}
+  .hdr h1{font-size:1.25rem}.hdr .meta{font-size:.75rem}
+  .kgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .kpi{padding:10px 11px}.kpi .v{font-size:1.2rem}.kpi .l,.kpi .s{font-size:.72rem}
+  h2,h3{font-size:1.1rem !important}
+  button[data-baseweb="tab"] p{font-size:.85rem}
+}
 </style>""", unsafe_allow_html=True)
 
 
@@ -54,14 +70,41 @@ def won(v, unit="억") -> str:
     return f"{v / 1e4:,.0f}만"
 
 
+def kpi_html(label, value, sub=""):
+    return (f"<div class='kpi'><div class='l'>{label}</div><div class='v'>{value}</div>"
+            f"<div class='s'>{sub}</div></div>")
+
+
 def kpi(col, label, value, sub=""):
-    col.markdown(f"<div class='kpi'><div class='l'>{label}</div><div class='v'>{value}</div>"
-                 f"<div class='s'>{sub}</div></div>", unsafe_allow_html=True)
+    col.markdown(kpi_html(label, value, sub), unsafe_allow_html=True)
+
+
+def kpi_grid(items):
+    """KPI 카드 묶음: PC는 한 줄, 휴대폰은 2열로 자동 배치."""
+    st.markdown("<div class='kgrid'>" + "".join(kpi_html(*it) for it in items) + "</div>", unsafe_allow_html=True)
+
+
+def short_name(n: str) -> str:
+    """휴대폰용 짧은 공사명: '200톤 10척 3호정' -> '10척 3호', '동일조선 병원선 1척' -> '동일 병원선'"""
+    s = re.sub(r"^\d+톤\s*", "", n).replace("호정", "호")
+    if s != n:
+        return s
+    w = n.split()
+    return (w[0][:2] + " " + w[1]) if len(w) >= 2 else n[:8]
+
+
+def show(fig):
+    cfg = {"displayModeBar": False, "scrollZoom": False} if MOBILE else {"displaylogo": False}
+    st.plotly_chart(fig, use_container_width=True, config=cfg)
 
 
 def base_layout(fig, height):
-    fig.update_layout(height=height, margin=dict(l=8, r=8, t=36, b=8), plot_bgcolor="#fcfcfb", paper_bgcolor="#fcfcfb",
-                      font=dict(family="Noto Sans KR, sans-serif", color=INK2, size=12),
+    if MOBILE:
+        height = int(height * 0.85)
+        fig.update_layout(dragmode=False)  # 손가락 스크롤이 차트에 갇히지 않게
+    fig.update_layout(height=height, margin=dict(l=4, r=4, t=36, b=4) if MOBILE else dict(l=8, r=8, t=36, b=8),
+                      plot_bgcolor="#fcfcfb", paper_bgcolor="#fcfcfb",
+                      font=dict(family="Noto Sans KR, sans-serif", color=INK2, size=10 if MOBILE else 12),
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, title=None),
                       hoverlabel=dict(bgcolor="#fff", font_color=INK))
     fig.update_xaxes(gridcolor=GRID, zeroline=False, linecolor=GRID)
@@ -77,6 +120,29 @@ def setting(key, default=""):
     except Exception:  # secrets.toml 없음
         pass
     return os.environ.get(key, default)
+
+
+# ------------------------------------------------------------------ 비밀번호 잠금 (APP_PASSWORD 설정 시)
+APP_PASSWORD = str(setting("APP_PASSWORD") or "")
+if APP_PASSWORD and not st.session_state.get("authed"):
+    st.markdown("## 🔒 원이엔지 경영 대시보드")
+    with st.form("login"):
+        pw = st.text_input("비밀번호", type="password")
+        ok = st.form_submit_button("들어가기", use_container_width=True)
+    if ok:
+        if hmac.compare_digest(pw.encode(), APP_PASSWORD.encode()):
+            st.session_state["authed"] = True
+            st.rerun()
+        st.error("비밀번호가 다릅니다.")
+    st.stop()
+
+
+def _ua_is_mobile() -> bool:
+    try:
+        ua = st.context.headers.get("User-Agent", "") or ""
+    except Exception:
+        ua = ""
+    return any(k in ua for k in ("iPhone", "Android", "Mobile", "iPad"))
 
 
 DEFAULT_DIR = setting("WATCH_DIR", str(HERE / "inbox"))
@@ -101,12 +167,37 @@ with st.sidebar:
     refresh = st.select_slider("새 파일 확인 주기", ["끔", "1분", "5분", "15분"], value="5분")
     demo = st.toggle("금액 예시로 미리보기", value=False,
                      help="수주·수금 시트가 아직 없을 때 화면 구성을 보기 위한 가상 금액입니다.")
+    MOBILE = st.toggle("📱 휴대폰 화면", value=_ua_is_mobile(), help="휴대폰으로 접속하면 자동으로 켜집니다.")
+    if APP_PASSWORD and st.button("로그아웃"):
+        st.session_state.pop("authed", None)
+        st.rerun()
 
 
 # ------------------------------------------------------------------ 파일 수집
+@st.cache_resource(show_spinner=False)
+def drive_source(folder_id: str):
+    return GoogleDriveSource(folder_id, load_service_account(setting("GDRIVE_SERVICE_ACCOUNT")))
+
+
+@st.cache_resource(ttl=60, show_spinner="구글 드라이브 확인 중…")
+def drive_listing(folder_id: str, _bucket: int):
+    return drive_source(folder_id).list_files()   # 1분간 재사용 (API 호출 절약)
+
+
+class _CachedDrive:
+    label = "Google Drive"
+
+    def available(self):
+        return drive_source(setting("GDRIVE_FOLDER_ID")).available()
+
+    def list_files(self, fresh=False):
+        bucket = int(dt.datetime.now().timestamp() // 60) if fresh else 0
+        return drive_listing(setting("GDRIVE_FOLDER_ID"), bucket)
+
+
 def get_source():
     if mode == "Google Drive 폴더":
-        return GoogleDriveSource(setting("GDRIVE_FOLDER_ID"), load_service_account(setting("GDRIVE_SERVICE_ACCOUNT")))
+        return _CachedDrive()
     return LocalFolderSource(folder)
 
 
@@ -181,7 +272,8 @@ if refresh != "끔" and mode != "파일 직접 올리기":
     @st.fragment(run_every=secs)
     def _watch():
         try:
-            fl = get_source().list_files()
+            srcw = get_source()
+            fl = srcw.list_files(fresh=True) if isinstance(srcw, _CachedDrive) else srcw.list_files()
             if fl and fl[0].uid != first_uid:
                 st.rerun(scope="app")
         except Exception:
@@ -218,73 +310,112 @@ n_risk = int((table["상태"] == "위험").sum())
 n_warn = int((table["상태"] == "주의").sum())
 month_end = (asof.replace(day=28) + dt.timedelta(days=4)).replace(day=1) - dt.timedelta(days=1)
 ho_month = table[table["인도일"].notna() & (table["인도일"] >= asof) & (table["인도일"] <= month_end)]
-c = st.columns(6)
-kpi(c[0], "진행 중 공사", f"{len(active)}건", f"전체 {len(table)}건 · 평균 진척 {active['진척도'].mean():.0f}%" if len(active) else "")
-kpi(c[1], "이번 달 인도 예정", f"{len(ho_month)}건", ", ".join(ho_month["공사명"].head(2)) or "없음")
-kpi(c[2], "⛔ 위험 / ⚠️ 주의", f"{n_risk} / {n_warn}", "일정 충돌·임박 기준")
+items = [
+    ("진행 중 공사", f"{len(active)}건", f"전체 {len(table)}건 · 평균 진척 {active['진척도'].mean():.0f}%" if len(active) else ""),
+    ("이번 달 인도 예정", f"{len(ho_month)}건", ", ".join(ho_month["공사명"].head(2)) or "없음"),
+    ("⛔ 위험 / ⚠️ 주의", f"{n_risk} / {n_warn}", "일정 충돌·임박 기준"),
+]
 if wb.orders:
-    kpi(c[3], "총 수주액", won(fin["total_order"]), f"{len(wb.orders)}건")
-    kpi(c[4], "수금액 (수금률)", won(fin["collected"]),
-        f"{fin['collect_rate']:.0f}% 수금" if fin["collect_rate"] is not None else "")
-    kpi(c[5], "미수금 · 연체", won(fin["receivable"]),
-        f"연체 {len(fin['overdue'])}건 {won(fin['overdue_amt'])} · 30일내 {won(fin['soon_amt'])}")
+    items += [
+        ("총 수주액", won(fin["total_order"]), f"{len(wb.orders)}건"),
+        ("수금액 (수금률)", won(fin["collected"]), f"{fin['collect_rate']:.0f}% 수금" if fin["collect_rate"] is not None else ""),
+        ("미수금 · 연체", won(fin["receivable"]),
+         f"연체 {len(fin['overdue'])}건 {won(fin['overdue_amt'])} · 30일내 {won(fin['soon_amt'])}"),
+    ]
 else:
-    for col, lab in zip(c[3:], ["총 수주액", "수금액", "미수금"]):
-        kpi(col, lab, "미입력", "수주·수금 시트를 추가하세요")
+    items += [(lab, "미입력", "수주·수금 시트를 추가하세요") for lab in ["총 수주액", "수금액", "미수금"]]
+kpi_grid(items)
 
-st.write("")
-tab_over, tab_gantt, tab_out, tab_fin, tab_hist, tab_check = st.tabs(
-    ["🏠 한눈에 보기", "🗓️ 공정 일정", "🏭 외주 진척", "💰 수주·수금", "🔁 변경 이력", "🩺 데이터 점검"])
+TABS = (["🏠 요약", "🗓️ 일정", "🏭 외주", "💰 자금", "🔁 변경", "🩺 점검"] if MOBILE else
+        ["🏠 한눈에 보기", "🗓️ 공정 일정", "🏭 외주 진척", "💰 수주·수금", "🔁 변경 이력", "🩺 데이터 점검"])
+tab_over, tab_gantt, tab_out, tab_fin, tab_hist, tab_check = st.tabs(TABS)
 
 # ------------------------------------------------------------------ 1. 한눈에 보기
-with tab_over:
-    left, right = st.columns([2.3, 1])
-    with left:
-        st.subheader("공사별 현황")
-        view = table.copy()
-        view["상태"] = view["상태"].map(lambda s: f"{STATUS[s][1]} {s}")
-        cols = ["상태", "공사명", "현재 단계", "진척도", "다음 일정", "인도일", "인도까지", "사유"]
-        if wb.orders:
-            cols[5:5] = ["수주금액", "수금액", "미수금"]
-            for k in ("수주금액", "수금액", "미수금"):
-                view[k] = view[k] / 1e6
-        st.dataframe(view[cols], hide_index=True, use_container_width=True, height=min(640, 38 + 35 * len(view)),
-                     column_config={
-                         "진척도": st.column_config.ProgressColumn("진척도", format="%.0f%%", min_value=0, max_value=100),
-                         "인도일": st.column_config.DateColumn("인도일", format="YY.MM.DD"),
-                         "인도까지": st.column_config.NumberColumn("인도까지", format="D-%d"),
-                         "수주금액": st.column_config.NumberColumn("수주(백만)", format="%,.0f"),
-                         "수금액": st.column_config.NumberColumn("수금(백만)", format="%,.0f"),
-                         "미수금": st.column_config.NumberColumn("미수(백만)", format="%,.0f"),
-                         "사유": st.column_config.TextColumn("확인 사유", width="medium"),
-                     })
-    with right:
-        st.subheader("앞으로 30일")
-        ev = A.milestone_events(wb)
-        ev = ev[ev["공사명"].isin(names) & (ev["날짜"] >= asof) & (ev["날짜"] <= asof + dt.timedelta(days=30))]
-        fin_ev = [(c_["due_date"], c_["project"], f"💰 {c_['kind']} 수금 예정 {won(c_.get('billed'))}")
-                  for c_ in wb.collections if c_.get("due_date") and not c_.get("paid_date")
-                  and asof <= c_["due_date"] <= asof + dt.timedelta(days=30)]
-        items = [(r["날짜"], r["공사명"], ("🚢 " if r["key"] == "HANDOVER" else "• ") + r["일정"]) for _, r in ev.iterrows()]
-        items = sorted(items + fin_ev)
-        if not items:
-            st.caption("예정된 일정이 없습니다.")
-        for d, pn, what in items[:18]:
-            st.markdown(f"<div class='alert' style='border-color:#2a78d6'><b>{d:%m/%d}</b> "
-                        f"<span class='pill'>D-{(d - asof).days}</span> {pn}<br>{what}</div>", unsafe_allow_html=True)
+def render_table():
+    st.subheader("공사별 현황")
+    view = table.copy()
+    view["상태"] = view["상태"].map(lambda s: f"{STATUS[s][1]} {s}")
+    cols = ["상태", "공사명", "현재 단계", "진척도", "다음 일정", "인도일", "인도까지", "사유"]
+    if wb.orders:
+        cols[5:5] = ["수주금액", "수금액", "미수금"]
+        for k in ("수주금액", "수금액", "미수금"):
+            view[k] = view[k] / 1e6
+    st.dataframe(view[cols], hide_index=True, use_container_width=True, height=min(640, 38 + 35 * len(view)),
+                 column_config={
+                     "진척도": st.column_config.ProgressColumn("진척도", format="%.0f%%", min_value=0, max_value=100),
+                     "인도일": st.column_config.DateColumn("인도일", format="YY.MM.DD"),
+                     "인도까지": st.column_config.NumberColumn("인도까지", format="D-%d"),
+                     "수주금액": st.column_config.NumberColumn("수주(백만)", format="%,.0f"),
+                     "수금액": st.column_config.NumberColumn("수금(백만)", format="%,.0f"),
+                     "미수금": st.column_config.NumberColumn("미수(백만)", format="%,.0f"),
+                     "사유": st.column_config.TextColumn("확인 사유", width="medium"),
+                 })
 
-        st.subheader("대표 확인 필요")
-        flagged = table[table["상태"].isin(["위험", "주의"])].sort_values("상태", key=lambda s: s.map({"위험": 0, "주의": 1}))
-        for _, r in flagged.iterrows():
-            colr, ic = STATUS[r["상태"]]
-            st.markdown(f"<div class='alert' style='border-color:{colr}'>{ic} <b>{r['상태']}</b> · {r['공사명']}"
-                        f"<br><span style='color:#52514e'>{r['사유']}</span></div>", unsafe_allow_html=True)
-        for c_ in fin["overdue"]:
-            st.markdown(f"<div class='alert' style='border-color:#d03b3b'>⛔ <b>수금 연체</b> · {c_['project']} {c_['kind']}"
-                        f"<br><span style='color:#52514e'>예정 {c_['due_date']:%y.%m.%d} · {won(c_.get('billed'))}</span></div>",
-                        unsafe_allow_html=True)
-        if flagged.empty and not fin["overdue"]:
-            st.caption("특이사항 없음 ✅")
+
+def render_cards():
+    """휴대폰용: 공사 1건 = 카드 1장"""
+    st.subheader("공사별 현황")
+    rank = {"위험": 0, "주의": 1, "정상": 2, "완료": 3}
+    t = table.sort_values(["상태", "인도까지"], key=lambda s: s.map(rank) if s.name == "상태" else s)
+    html = []
+    for _, r in t.iterrows():
+        colr, ic = STATUS[r["상태"]]
+        dday = f"인도 D-{int(r['인도까지'])}" if pd.notna(r["인도까지"]) and r["인도까지"] >= 0 else ""
+        money = ""
+        if pd.notna(r.get("수주금액")):
+            money = f"<div class='m'>수주 {won(r['수주금액'])} · 수금 {won(r['수금액'])} · 미수 {won(r['미수금'])}</div>"
+        why = f"<div class='m' style='color:#8f1f1f'>{r['사유']}</div>" if r["사유"] else ""
+        html.append(
+            f"<div class='pcard' style='border-left-color:{colr}'>"
+            f"<div class='t'><span>{ic} {r['공사명']}</span><span class='pill'>{dday or r['상태']}</span></div>"
+            f"<div class='m'>{r['현재 단계']} · {r['진척도']:.0f}% · 다음: {r['다음 일정']}</div>"
+            f"<div class='bar'><i style='width:{r['진척도']:.0f}%'></i></div>{money}{why}</div>")
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
+def render_upcoming():
+    st.subheader("앞으로 30일")
+    ev = A.milestone_events(wb)
+    ev = ev[ev["공사명"].isin(names) & (ev["날짜"] >= asof) & (ev["날짜"] <= asof + dt.timedelta(days=30))]
+    fin_ev = [(c_["due_date"], c_["project"], f"💰 {c_['kind']} 수금 예정 {won(c_.get('billed'))}")
+              for c_ in wb.collections if c_.get("due_date") and not c_.get("paid_date")
+              and asof <= c_["due_date"] <= asof + dt.timedelta(days=30)]
+    its = [(r["날짜"], r["공사명"], ("🚢 " if r["key"] == "HANDOVER" else "• ") + r["일정"]) for _, r in ev.iterrows()]
+    its = sorted(its + fin_ev)
+    if not its:
+        st.caption("예정된 일정이 없습니다.")
+    for d, pn, what in its[:18]:
+        st.markdown(f"<div class='alert' style='border-color:#2a78d6'><b>{d:%m/%d}</b> "
+                    f"<span class='pill'>D-{(d - asof).days}</span> {pn}<br>{what}</div>", unsafe_allow_html=True)
+
+
+def render_flagged():
+    st.subheader("대표 확인 필요")
+    flagged = table[table["상태"].isin(["위험", "주의"])].sort_values("상태", key=lambda s: s.map({"위험": 0, "주의": 1}))
+    for _, r in flagged.iterrows():
+        colr, ic = STATUS[r["상태"]]
+        st.markdown(f"<div class='alert' style='border-color:{colr}'>{ic} <b>{r['상태']}</b> · {r['공사명']}"
+                    f"<br><span style='color:#52514e'>{r['사유']}</span></div>", unsafe_allow_html=True)
+    for c_ in fin["overdue"]:
+        st.markdown(f"<div class='alert' style='border-color:#d03b3b'>⛔ <b>수금 연체</b> · {c_['project']} {c_['kind']}"
+                    f"<br><span style='color:#52514e'>예정 {c_['due_date']:%y.%m.%d} · {won(c_.get('billed'))}</span></div>",
+                    unsafe_allow_html=True)
+    if flagged.empty and not fin["overdue"]:
+        st.caption("특이사항 없음 ✅")
+
+
+with tab_over:
+    if MOBILE:
+        render_flagged()
+        render_upcoming()
+        render_cards()
+    else:
+        left, right = st.columns([2.3, 1])
+        with left:
+            render_table()
+        with right:
+            render_upcoming()
+            render_flagged()
 
     st.subheader("단계별 공사 분포")
     stage_counts = table["현재 단계"].value_counts().reindex(A.STAGE_ORDER).dropna()
@@ -292,7 +423,7 @@ with tab_over:
                            text=stage_counts.values.astype(int), textposition="outside",
                            hovertemplate="%{y}: %{x}건<extra></extra>"))
     fig.update_yaxes(autorange="reversed")
-    st.plotly_chart(base_layout(fig, 60 + 34 * len(stage_counts)), use_container_width=True)
+    show(base_layout(fig, 60 + 34 * len(stage_counts)))
 
 # ------------------------------------------------------------------ 2. 공정 일정 (간트)
 with tab_gantt:
@@ -320,7 +451,11 @@ with tab_gantt:
                        font=dict(color="#d03b3b"), yanchor="bottom")
     fig.update_layout(barmode="overlay", xaxis_type="date")
     fig.update_yaxes(categoryorder="array", categoryarray=order[::-1])
-    st.plotly_chart(base_layout(fig, 120 + 34 * len(order)), use_container_width=True)
+    if MOBILE:  # 짧은 이름 + 기준일 전후 15개월만 (손가락으로 좌우 이동은 막고 보기 편하게)
+        fig.update_yaxes(tickvals=order, ticktext=[short_name(n) for n in order])
+        fig.update_xaxes(range=[pd.Timestamp(asof - dt.timedelta(days=120)), pd.Timestamp(asof + dt.timedelta(days=330))],
+                         tickformat="%y.%m")
+    show(base_layout(fig, 120 + 34 * len(order)))
     st.caption("막대: 설계(승인도)→외주 발주→납품→설치·시운전→인도 준비 / ◆ 인도일 / 빨간 점선: 기준일")
 
     with st.expander("공사별 전체 일정표 (엑셀 원문 포함)"):
@@ -342,11 +477,9 @@ with tab_out:
         st.info("외주 발주/납품 일정이 없습니다.")
     else:
         pk = ["서포트", "하우징", "장비", "보온재·설치"]
-        a, b, cc = st.columns(3)
-        kpi(a, "외주 패키지", f"{len(mx)}건", "공사 × (서포트·하우징·장비·설치)")
-        kpi(b, "발주·제작 중", f"{(mx['상태'] == '발주·제작중').sum()}건", "납품 대기")
-        kpi(cc, "납품 완료율", f"{(mx['상태'] == '완료').mean() * 100:.0f}%", f"발주 전 {(mx['상태'] == '발주 전').sum()}건")
-        st.write("")
+        kpi_grid([("외주 패키지", f"{len(mx)}건", "공사 × (서포트·하우징·장비·설치)"),
+                  ("발주·제작 중", f"{(mx['상태'] == '발주·제작중').sum()}건", "납품 대기"),
+                  ("납품 완료율", f"{(mx['상태'] == '완료').mean() * 100:.0f}%", f"발주 전 {(mx['상태'] == '발주 전').sum()}건")])
         piv = mx.pivot_table(index="공사명", columns="패키지", values="점수", aggfunc="first").reindex(columns=pk)
         piv = piv.reindex([n for n in order if n in piv.index])
         lab = mx.pivot_table(index="공사명", columns="패키지", values="상태", aggfunc="first").reindex(index=piv.index, columns=pk)
@@ -367,7 +500,11 @@ with tab_out:
                           "<br>발주 %{customdata[2]} → 납품 %{customdata[3]}<extra></extra>"))
         fig.update_yaxes(autorange="reversed")
         fig.update_xaxes(side="top")
-        st.plotly_chart(base_layout(fig, 80 + 32 * len(piv)), use_container_width=True)
+        if MOBILE:
+            fig.update_traces(textfont_size=9, texttemplate="%{text}")
+            fig.update_yaxes(tickvals=list(piv.index), ticktext=[short_name(n) for n in piv.index])
+            fig.update_xaxes(tickvals=pk, ticktext=["서포트", "하우징", "장비", "보온·설치"])
+        show(base_layout(fig, 80 + 32 * len(piv)))
         st.caption("■ 연회색 발주 전 · ■ 하늘색 발주·제작 중 · ■ 파랑 납품 완료 (칸에 마우스를 올리면 업체·일자 표시)")
 
         st.subheader("업체별 진행 물량")
@@ -379,7 +516,7 @@ with tab_out:
                                  marker=dict(color=OUT_STATUS[stt], line=dict(color="#fcfcfb", width=2)),
                                  hovertemplate="%{y} · " + stt + ": %{x}건<extra></extra>"))
         fig.update_layout(barmode="stack")
-        st.plotly_chart(base_layout(fig, 90 + 36 * len(vv)), use_container_width=True)
+        show(base_layout(fig, 90 + 36 * len(vv)))
 
     st.subheader("외주업체 특성 · 리스크")
     if not wb.vendors:
@@ -410,14 +547,14 @@ with tab_fin:
                 "왼쪽 **[금액 예시로 미리보기]** 를 켜면 완성된 화면을 미리 볼 수 있습니다.")
         st.download_button("📥 수주·수금·외주비 입력 양식 받기 (공사명 자동 기입)", tpl, "수주수금_입력양식.xlsx")
     else:
-        a, b, c_, d = st.columns(4)
-        kpi(a, "총 수주액", won(fin["total_order"]), f"외주비 {won(fin['out_total'])}")
-        kpi(b, "예상 매출총이익", won(fin["gross_margin"]),
-            f"{fin['gross_margin'] / fin['total_order'] * 100:.0f}% (수주-외주비)" if fin["total_order"] else "")
-        kpi(c_, "수금 / 미수금", f"{won(fin['collected'])} / {won(fin['receivable'])}",
-            f"수금률 {fin['collect_rate']:.0f}%" if fin["collect_rate"] is not None else "")
-        kpi(d, "30일 내 자금", f"+{won(fin['soon_amt'])} / -{won(fin['out_soon_amt'])}", "수금 예정 / 외주 지급 예정")
-        st.write("")
+        kpi_grid([
+            ("총 수주액", won(fin["total_order"]), f"외주비 {won(fin['out_total'])}"),
+            ("예상 매출총이익", won(fin["gross_margin"]),
+             f"{fin['gross_margin'] / fin['total_order'] * 100:.0f}% (수주-외주비)" if fin["total_order"] else ""),
+            ("수금 / 미수금", f"{won(fin['collected'])} / {won(fin['receivable'])}",
+             f"수금률 {fin['collect_rate']:.0f}%" if fin["collect_rate"] is not None else ""),
+            ("30일 내 자금", f"+{won(fin['soon_amt'])} / -{won(fin['out_soon_amt'])}", "수금 예정 / 외주 지급 예정"),
+        ])
 
         l, r = st.columns([1.3, 1])
         with l:
@@ -432,7 +569,9 @@ with tab_fin:
                                  hovertemplate="%{y}<br>미수 %{x:.2f}억<extra></extra>"))
             fig.update_layout(barmode="stack", xaxis_title="억원")
             fig.update_yaxes(categoryorder="array", categoryarray=list(t["공사명"])[::-1])
-            st.plotly_chart(base_layout(fig, 90 + 30 * len(t)), use_container_width=True)
+            if MOBILE:
+                fig.update_yaxes(tickvals=list(t["공사명"]), ticktext=[short_name(n) for n in t["공사명"]])
+            show(base_layout(fig, 90 + 30 * len(t)))
         with r:
             st.subheader("월별 자금 흐름")
             cf = A.cashflow_frame(wb)
@@ -458,7 +597,7 @@ with tab_fin:
                     fig.add_vline(x=months.index(cur), line=dict(color="#d03b3b", width=1, dash="dot"))
                 fig.update_layout(barmode="relative", yaxis_title="억원", bargap=0.25)
                 fig.update_xaxes(type="category", categoryorder="array", categoryarray=months)
-                st.plotly_chart(base_layout(fig, 420), use_container_width=True)
+                show(base_layout(fig, 420))
 
         st.subheader("수금 일정")
         cdf = pd.DataFrame(wb.collections)

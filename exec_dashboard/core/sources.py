@@ -101,11 +101,13 @@ class GoogleDriveSource:
 
 
 def load_service_account(raw) -> dict:
+    """서비스계정 키: JSON 문자열 / JSON 파일 경로 / secrets.toml 의 [GDRIVE_SERVICE_ACCOUNT] 표 모두 허용."""
+    from collections.abc import Mapping
     if not raw:
         return {}
-    if isinstance(raw, dict):
-        return dict(raw)
-    raw = str(raw)
+    if isinstance(raw, Mapping):
+        return {k: raw[k] for k in raw}
+    raw = str(raw).strip()
     if os.path.isfile(raw):
         return json.loads(Path(raw).read_text(encoding="utf-8"))
     return json.loads(raw)
