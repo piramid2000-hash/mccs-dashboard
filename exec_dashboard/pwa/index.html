@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>원이엔지 경영</title>
+<meta name="theme-color" content="#1f5fbf">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="원이엔지">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{
+ /* 앱 껍데기: 보고서와 같은 색 토큰 (청사진 블루 + 따뜻한 회색) */
+ --bg:#f6f5f2;--card:#ffffff;--ink:#16181d;--ink2:#555a63;--ink3:#8a8f98;--line:#e3e1dc;
+ --accent:#1f5fbf;--accent-soft:#dfe9f8;--crit:#d03b3b;--bar:rgba(255,255,255,.92);
+ --font:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+ --nav-h:58px;--on-accent:#ffffff;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --bg:#141518;--card:#1d1f23;--ink:#eceef1;--ink2:#b3b8c0;--ink3:#80868f;--line:#2e3137;
+ --accent:#6aa5f0;--accent-soft:#1f2c40;--bar:rgba(29,31,35,.92);--on-accent:#0b1626;color-scheme:dark}}
+:root[data-theme="dark"]{
+ --bg:#141518;--card:#1d1f23;--ink:#eceef1;--ink2:#b3b8c0;--ink3:#80868f;--line:#2e3137;
+ --accent:#6aa5f0;--accent-soft:#1f2c40;--bar:rgba(29,31,35,.92);--on-accent:#0b1626;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+[hidden]{display:none!important}
+
+/* 잠금 화면 */
+#lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px max(20px,env(safe-area-inset-right)) 24px max(20px,env(safe-area-inset-left))}
+#lock form{width:100%;max-width:360px;display:grid;gap:14px;text-align:center}
+#lock img{width:84px;height:84px;margin:0 auto;border-radius:20px;box-shadow:0 6px 20px rgba(31,95,191,.25)}
+#lock h1{margin:4px 0 0;font-size:1.35rem}
+#lock p{margin:0;color:var(--ink2);font-size:.9rem}
+#lock input[type=password]{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:1rem}
+#lock input[type=password]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#lock label.rem{display:flex;gap:8px;align-items:center;justify-content:center;font-size:.88rem;color:var(--ink2)}
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:12px;padding:14px;font-weight:700;font-size:1rem;cursor:pointer}
+.btn:disabled{opacity:.6}
+.btn:focus-visible,.tab:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#lockErr{color:var(--crit);font-size:.88rem;min-height:1.3em}
+
+/* 상단 바 */
+#top{position:sticky;top:0;z-index:20;background:var(--bar);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);
+ border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left));
+ display:flex;align-items:center;gap:10px}
+#top .t{flex:1;min-width:0}
+#top b{display:block;font-size:1.02rem;line-height:1.2}
+#top small{color:var(--ink3);font-size:.75rem}
+.icon-btn{border:0;background:transparent;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;cursor:pointer;color:var(--ink2)}
+.icon-btn svg{width:22px;height:22px}
+.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#banner{margin:10px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));padding:10px 12px;border-radius:10px;font-size:.85rem;background:var(--accent-soft);color:var(--ink);display:flex;gap:8px;align-items:center}
+#banner button{margin-left:auto;border:0;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:6px 10px;font-weight:600;cursor:pointer;flex:0 0 auto}
+
+/* 본문: 보고서가 들어오는 곳 */
+#content{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 16px)}
+#content > main.wrap{padding-top:14px}
+#content [data-tab]{display:none}
+#content.t-home [data-tab=home],#content.t-proj [data-tab=proj],#content.t-out [data-tab=out],
+#content.t-money [data-tab=money],#content.t-check [data-tab=check],#content [data-tab=all]{display:block}
+#content.t-home section.kpis[data-tab=home]{display:grid}
+#content header[data-tab]{display:none!important}  /* 상단 바가 대신 보여 줌 */
+
+/* 하단 탭 */
+#nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);
+ border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);
+ padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.tab{height:var(--nav-h);border:0;background:transparent;display:grid;place-items:center;align-content:center;gap:2px;font-size:.7rem;color:var(--ink3);cursor:pointer;position:relative}
+.tab svg{width:24px;height:24px}
+.tab[aria-current=page]{color:var(--accent);font-weight:700}
+.tab .dot{position:absolute;top:7px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--crit);color:#fff;font-size:.66rem;line-height:17px;font-weight:700}
+#empty{padding:60px 24px;text-align:center;color:var(--ink2)}
+@media (prefers-reduced-motion:reduce){.spin svg{animation:none}}
+</style>
+</head>
+<body>
+
+<section id="lock" hidden>
+  <form id="lockForm" autocomplete="off">
+    <img src="icons/icon-192.png" alt="" width="84" height="84">
+    <h1>원이엔지 경영</h1>
+    <p>공사·외주·수금 현황 (대표 전용)</p>
+    <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password" aria-label="비밀번호" required>
+    <label class="rem"><input id="remember" type="checkbox" checked> 이 휴대폰에서 기억하기</label>
+    <button class="btn" id="unlockBtn" type="submit">열기</button>
+    <div id="lockErr" role="alert"></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <div id="top">
+    <div class="t"><b id="appTitle">원이엔지 경영</b><small id="stamp">불러오는 중…</small></div>
+    <button class="icon-btn" id="refreshBtn" aria-label="새로고침" title="새로고침">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+    <button class="icon-btn" id="lockBtn" aria-label="잠그기" title="잠그기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </button>
+  </div>
+  <div id="banner" hidden></div>
+  <div id="content" class="t-home"><div id="empty">불러오는 중…</div></div>
+
+  <nav id="nav" aria-label="화면">
+    <button class="tab" data-go="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>홈</button>
+    <button class="tab" data-go="proj"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h9M7 12h11M10 18h8"/></svg>공사</button>
+    <button class="tab" data-go="out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V9l6 4V9l6 4V5h6v15z"/></svg>외주</button>
+    <button class="tab" data-go="money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>자금</button>
+    <button class="tab" data-go="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>점검<span class="dot" id="checkDot" hidden></span></button>
+  </nav>
+</div>
+
+<style id="reportCss"></style>
+<script src="app.js"></script>
+</body>
+</html>

@@ -257,8 +257,20 @@ def brief_html(b: dict, asof: dt.date) -> str:
             f"<ul class='bh'>{head}</ul><div class='bgrid'>{''.join(blocks)}</div></section>")
 
 
+# 앱(스마트폰) 화면 탭: 보고서 블록 → 탭
+TAB_RULES = [("공사별 현황", "proj"), ("공정 일정", "proj"), ("외주 진척", "out"), ("주요 외주업체", "out"),
+             ("외주업체 결제", "out"), ("수주 · 수금", "money"), ("엑셀 확인 요청", "check"), ("<footer", "all")]
+
+
+def _tag(block: str) -> str:
+    tab = next((t for kw, t in TAB_RULES if kw in block[:200]), "home")
+    m = re.match(r"<(\w+)", block)
+    return block.replace(f"<{m.group(1)}", f"<{m.group(1)} data-tab='{tab}'", 1) if m else block
+
+
 def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict | None = None,
-               notice: str = "") -> str:
+               notice: str = "", parts: bool = False):
+    """parts=True 이면 앱용으로 {css, js, body, title} 을 돌려준다 (각 블록에 data-tab 표시)."""
     t = A.project_table(wb, asof)
     fin = A.finance_summary(wb, asof)
     rank = {"위험": 0, "주의": 1, "정상": 2, "완료": 3}
@@ -428,6 +440,8 @@ def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict 
     P.append(f"<footer>기준일 이전 날짜는 완료로 간주 · 생성 {dt.datetime.now():%Y-%m-%d %H:%M}</footer>")
 
     title = f"{wb.company or ''} 업무 현황 {asof:%m.%d}".strip()
+    if parts:
+        return {"css": CSS, "js": JS, "title": title, "body": "".join(_tag(x) for x in P)}
     return ("<!doctype html><html lang='ko'><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
             f"<title>{E(title)}</title><style>{CSS}</style></head><body><main class='wrap'>"

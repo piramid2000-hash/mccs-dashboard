@@ -1,0 +1,89 @@
+# 매일 자동 업데이트: 스마트폰 앱 자료 갱신 + 아침 브리핑 메일
+#   - 평일 아침 07:05 (한국시간): 앱 갱신 + 대표 메일 발송
+#   - 평일 저녁 19:40 (한국시간): 경리부가 퇴근 전 올린 자료로 앱만 갱신
+#   - Actions 탭 → '매일 업데이트' → Run workflow 로 수동 실행 가능
+#
+# 저장소 Secrets (Settings → Secrets and variables → Actions):
+#   필수  GDRIVE_FOLDER_ID, GDRIVE_SERVICE_ACCOUNT, APP_PASSWORD
+#   메일  SMTP_USER, SMTP_PASSWORD, BRIEF_TO
+# 앱 공개 설정: Settings → Pages → Source 를 'GitHub Actions' 로 (처음 한 번)
+name: 매일 업데이트
+
+on:
+  schedule:
+    - cron: "5 22 * * 0-4"    # 월~금 07:05 KST (UTC 전날 22:05)
+    - cron: "40 10 * * 1-5"   # 월~금 19:40 KST
+  workflow_dispatch:
+    inputs:
+      send_email:
+        description: "아침 브리핑 메일도 보내기"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+      GDRIVE_SERVICE_ACCOUNT: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 패키지 설치
+        run: pip install pandas openpyxl google-api-python-client google-auth cryptography
+
+      - name: 어제 기록 불러오기
+        uses: actions/cache/restore@v4
+        with:
+          path: exec_dashboard/.history
+          key: brief-history-${{ github.run_id }}
+          restore-keys: brief-history-
+
+      - name: 아침 브리핑 메일
+        if: github.event.schedule == '5 22 * * 0-4' || inputs.send_email
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          BRIEF_TO: ${{ secrets.BRIEF_TO }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+        run: python exec_dashboard/scripts/morning_brief.py -o "$RUNNER_TEMP/brief.html"
+
+      # 공개 저장소라 로그에는 건수만 찍힌다. 자료는 APP_PASSWORD 로 암호화되어 올라감
+      - name: 스마트폰 앱 만들기
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+        run: python exec_dashboard/scripts/build_app.py --out dist
+
+      - name: 오늘 기록 저장
+        uses: actions/cache/save@v4
+        with:
+          path: exec_dashboard/.history
+          key: brief-history-${{ github.run_id }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
