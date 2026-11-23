@@ -103,8 +103,23 @@ def main():
     (out / "data.enc").write_text(json.dumps(box), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     assert decrypt(box, password)["generated"] == payload["generated"]
+
+    # 심사·시연용 예시 자료 (DEMO_PASSWORD 가 있을 때만): 공사명·업체명·금액 모두 가짜
+    demo_pw = os.environ.get("DEMO_PASSWORD", "")
+    if demo_pw:
+        if demo_pw == password:
+            sys.exit("DEMO_PASSWORD 는 APP_PASSWORD 와 달라야 합니다.")
+        import copy
+        from core.demo import anonymize, assert_anonymous
+        dwb = anonymize(copy.deepcopy(wb), asof)
+        dparts = build_html(dwb, asof, "예시 자료", brief=A.morning_brief(None, to_snapshot(dwb), dwb, asof),
+                            notice="심사·시연용 예시 화면입니다. 공사명·업체명·금액은 모두 가짜입니다.", parts=True)
+        assert_anonymous(dparts["body"])
+        demo = {**dparts, "company": wb.company, "asof": asof.isoformat(), "generated": payload["generated"],
+                "finance_as_of": asof.isoformat(), "check_count": 2, "headline": [], "demo": True}
+        (out / "demo.enc").write_text(json.dumps(encrypt(demo, demo_pw)), encoding="utf-8")
     print(f"app built: projects={len(wb.projects)} finance={'yes' if wb.has_finance else 'no'} "
-          f"checks={len(checks)} size={(out / 'data.enc').stat().st_size // 1024}KB")
+          f"checks={len(checks)} size={(out / 'data.enc').stat().st_size // 1024}KB demo={'yes' if demo_pw else 'no'}")
 
 
 if __name__ == "__main__":

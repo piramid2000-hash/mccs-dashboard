@@ -5,6 +5,7 @@
 #
 # 저장소 Secrets (Settings → Secrets and variables → Actions):
 #   필수  GDRIVE_FOLDER_ID, GDRIVE_SERVICE_ACCOUNT, APP_PASSWORD
+#   선택  DEMO_PASSWORD (구글 플레이 심사용, 예시 자료만 열림)
 #   메일  SMTP_USER, SMTP_PASSWORD, BRIEF_TO
 # 앱 공개 설정: Settings → Pages → Source 를 'GitHub Actions' 로 (처음 한 번)
 name: 매일 업데이트
@@ -66,6 +67,7 @@ jobs:
       - name: 스마트폰 앱 만들기
         env:
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}   # 선택: 구글 플레이 심사·시연용 (예시 자료만 열림)
         run: python exec_dashboard/scripts/build_app.py --out dist
 
       - name: 오늘 기록 저장

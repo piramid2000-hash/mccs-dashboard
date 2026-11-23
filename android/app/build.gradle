@@ -1,0 +1,66 @@
+// 원이엔지 경영 — 안드로이드 앱 (Trusted Web Activity)
+// 앱 화면은 웹앱(https://piramid2000-hash.github.io/mccs-dashboard/)을 크롬 엔진으로 전체 화면에 띄운다.
+plugins { id "com.android.application" }
+
+def twa = [
+    applicationId : "kr.co.oneeng.ceo",
+    hostName      : "piramid2000-hash.github.io",
+    launchUrl     : "/mccs-dashboard/#home",
+    name          : "원이엔지 경영",
+    launcherName  : "원이엔지",
+    themeColor    : "#1F5FBF",
+    navColor      : "#F6F5F2",
+    backgroundColor: "#F6F5F2",
+]
+
+android {
+    namespace "kr.co.oneeng.ceo"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId twa.applicationId
+        minSdk 24
+        targetSdk 36
+        // 버전: Play 에 올릴 때마다 versionCode 를 1씩 올린다 (GitHub 빌드는 실행 번호로 자동 지정)
+        versionCode((System.getenv("VERSION_CODE") ?: "1") as int)
+        versionName System.getenv("VERSION_NAME") ?: "1.0.0"
+
+        resValue "string", "appName", twa.name
+        resValue "string", "launcherName", twa.launcherName
+        resValue "string", "hostName", twa.hostName
+        resValue "string", "launchUrl", "https://" + twa.hostName + twa.launchUrl
+        // 안드로이드 문자열 자원은 큰따옴표를 지우므로 \" 로 이스케이프 (안 하면 소유 증명 JSON 이 깨짐)
+        def statements = '[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "web", "site": "https://' + twa.hostName + '"}}]'
+        resValue "string", "assetStatements", statements.replace('"', '\\"')
+        resValue "color", "colorPrimary", twa.themeColor
+        resValue "color", "navigationColor", twa.navColor
+        resValue "color", "backgroundColor", twa.backgroundColor
+    }
+
+    signingConfigs {
+        release {
+            // 업로드 키: GitHub Secrets 또는 로컬 환경변수로만 전달 (저장소에 키를 넣지 않음)
+            def ks = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS") ?: "upload"
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv("ANDROID_KEYSTORE_PATH")) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.4"
+}

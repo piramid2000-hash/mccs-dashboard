@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "kr.co.oneeng.ceo",
+      "sha256_cert_fingerprints": [
+        "14:11:8F:7A:96:15:19:72:6C:51:33:CF:AE:0C:C8:66:C3:7C:58:E7:5A:EE:22:CF:90:9B:C1:E6:15:58:0F:93",
+        "여기에_Play_Console_앱서명키_SHA256_지문을_붙여넣기"
+      ]
+    }
+  }
+]

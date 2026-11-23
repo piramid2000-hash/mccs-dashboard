@@ -9,6 +9,7 @@
   var TABS = ["home", "proj", "out", "money", "check"];
   var $ = function (id) { return document.getElementById(id); };
   var key = null, payload = null, lastGenerated = null, ranReportJs = false;
+  var source = "data.enc"; // 대표용 실제 자료. 심사·시연용 비밀번호면 demo.enc
 
   // ---------- 키 보관 (IndexedDB) ----------
   function idb() {
@@ -28,9 +29,10 @@
       });
     });
   }
-  var saveKey = function (k) { return idbDo("readwrite", function (s) { return s.put(k, "key"); }).catch(function () {}); };
+  var saveKey = function (k, src) { return idbDo("readwrite", function (s) { s.put(src, "src"); return s.put(k, "key"); }).catch(function () {}); };
   var loadKey = function () { return idbDo("readonly", function (s) { return s.get("key"); }).catch(function () { return null; }); };
-  var dropKey = function () { return idbDo("readwrite", function (s) { return s.delete("key"); }).catch(function () {}); };
+  var loadSrc = function () { return idbDo("readonly", function (s) { return s.get("src"); }).catch(function () { return null; }); };
+  var dropKey = function () { return idbDo("readwrite", function (s) { s.delete("src"); return s.delete("key"); }).catch(function () {}); };
 
   // ---------- 암호 ----------
   function b64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
@@ -48,8 +50,8 @@
   }
 
   // ---------- 데이터 ----------
-  function fetchBox(fresh) {
-    return fetch("data.enc" + (fresh ? "?t=" + Date.now() : ""), { cache: fresh ? "no-store" : "default" })
+  function fetchBox(fresh, src) {
+    return fetch((src || source) + (fresh ? "?t=" + Date.now() : ""), { cache: fresh ? "no-store" : "default" })
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
   }
 
@@ -132,15 +134,23 @@
     var pw = $("pw").value, btn = $("unlockBtn");
     if (!pw) return;
     btn.disabled = true; btn.textContent = "확인 중…"; $("lockErr").textContent = "";
-    fetchBox(true).catch(function () { return fetchBox(false); }).then(function (box) {
-      return deriveKey(pw, box.iter).then(function (k) {
-        return decrypt(k, box).then(function (p) {
-          key = k; lastGenerated = box.generated;
-          if ($("remember").checked) saveKey(k);
-          $("lock").hidden = true; $("app").hidden = false;
-          render(p); installHint();
+    var tryOpen = function (src) {
+      return fetchBox(true, src).catch(function () { return fetchBox(false, src); }).then(function (box) {
+        return deriveKey(pw, box.iter).then(function (k) {
+          return decrypt(k, box).then(function (p) {
+            key = k; source = src; lastGenerated = box.generated;
+            if ($("remember").checked) saveKey(k, src);
+            $("lock").hidden = true; $("app").hidden = false;
+            render(p); installHint();
+          });
         });
       });
+    };
+    tryOpen("data.enc").catch(function (e) {
+      if (e && e.name === "OperationError") {  // 실제 자료 비밀번호가 아니면 예시 자료로 한 번 더
+        return tryOpen("demo.enc").catch(function (e2) { throw (e2 && e2.name === "OperationError") ? e2 : e; });
+      }
+      throw e;
     }).catch(function (e) {
       $("lockErr").textContent = e && e.name === "OperationError" ? "비밀번호가 맞지 않습니다." : "자료를 받지 못했습니다. 인터넷 연결을 확인해 주세요.";
     }).then(function () { btn.disabled = false; btn.textContent = "열기"; });
@@ -182,9 +192,10 @@
   }
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
 
-  loadKey().then(function (k) {
+  Promise.all([loadKey(), loadSrc()]).then(function (r) {
+    var k = r[0];
     if (!k) { lockOut(""); return; }
-    key = k; $("lock").hidden = true; $("app").hidden = false;
+    key = k; source = r[1] || "data.enc"; $("lock").hidden = true; $("app").hidden = false;
     load(true);
   });
 })();
