@@ -139,12 +139,14 @@ td.na{background:transparent;color:var(--ink3)}
 .vend b{display:block}
 .vend .it{color:var(--ink3);font-size:.75rem}
 .flag{display:inline-block;font-size:.7rem;color:var(--crit);border:1px solid var(--crit);border-radius:999px;padding:0 6px;margin:4px 4px 0 0}
-table.fin{border-collapse:collapse;width:100%;font-size:.84rem;min-width:520px}
+table.fin{border-collapse:collapse;width:100%;font-size:.84rem}
+table.fin td{white-space:nowrap}
 table.fin th,table.fin td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
 table.fin th:first-child,table.fin td:first-child{text-align:left}
 table.fin th{color:var(--ink2);font-weight:600}
 .note{font-size:.8rem;color:var(--ink3)}
 .checks{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0;list-style:none;display:grid;gap:6px;font-size:.86rem}
+.notice{background:var(--warn-soft);border:1px solid var(--warn);color:var(--ink);border-radius:10px;padding:10px 14px;font-weight:600;font-size:.9rem}
 .brief{background:var(--accent-soft);border-radius:14px;padding:14px 16px}
 .brief h2{margin-bottom:6px}
 .bh{margin:0 0 10px;padding-left:18px;font-weight:600}
@@ -153,7 +155,7 @@ table.fin th{color:var(--ink2);font-weight:600}
 .bb ul{margin:4px 0 0;padding-left:16px}
 .bb li{margin:2px 0}
 footer{color:var(--ink3);font-size:.75rem;text-align:center}
-@media (max-width:480px){header h1{font-size:1.25rem}.kpi .v{font-size:1.2rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){table.fin{font-size:.74rem}table.fin th,table.fin td{padding:7px 5px}table.fin td:first-child{white-space:normal;word-break:keep-all}header h1{font-size:1.25rem}.kpi .v{font-size:1.2rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 """
 
@@ -245,7 +247,8 @@ def brief_html(b: dict, asof: dt.date) -> str:
             f"<ul class='bh'>{head}</ul><div class='bgrid'>{''.join(blocks)}</div></section>")
 
 
-def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict | None = None) -> str:
+def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict | None = None,
+               notice: str = "") -> str:
     t = A.project_table(wb, asof)
     fin = A.finance_summary(wb, asof)
     rank = {"위험": 0, "주의": 1, "정상": 2, "완료": 3}
@@ -260,6 +263,9 @@ def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict 
              f"<h1>{E(wb.company or '')} 공사·외주 현황</h1>"
              f"<div class='meta'>엑셀 작성일 {wb.report_date or '-'} · REV {E(wb.revision or '-')}"
              f"{' · ' + E(source_label) if source_label else ''}</div></header>")
+
+    if notice:  # 예시 데이터 등 경고 띠
+        P.append(f"<div class='notice' role='note'>⚠️ {E(notice)}</div>")
 
     # ---- KPI
     k = [("진행 중 공사", f"{len(active)}건", f"전체 {len(t)}건 · 평균 진척 {active['진척도'].mean():.0f}%" if len(active) else "", ""),
