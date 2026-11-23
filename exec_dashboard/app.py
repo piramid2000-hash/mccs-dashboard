@@ -24,7 +24,8 @@ from core.history import HistoryStore                  # noqa: E402
 from core.parser import parse_workbook, to_snapshot    # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
 from core.template import build_finance_template, demo_finance  # noqa: E402
-from core.html_report import build_html            # noqa: E402
+from core.html_report import build_html, money     # noqa: E402
+from core.loader import merge_finance             # noqa: E402
 
 st.set_page_config(page_title="원이엔지 경영 대시보드", page_icon="📊", layout="wide", initial_sidebar_state="auto")
 
@@ -244,7 +245,7 @@ wb, wb_name, wb_mod = status_files[0]  # 가장 최근 수정본
 fin_src = None
 if not wb.has_finance and fin_files:
     fin_src = fin_files[0]
-    wb.orders, wb.collections, wb.outsourcing = fin_src[0].orders, fin_src[0].collections, fin_src[0].outsourcing
+merge_finance(wb, fin_src[0] if fin_src else None)  # 공사명 맞추기 + 인도일 교차 점검
 
 if asof_mode == "보고서 작성일" and wb.report_date:
     asof = wb.report_date
@@ -311,6 +312,8 @@ else:
 src_txt = f"{wb_name} · 수정 {wb_mod:%Y-%m-%d %H:%M}"
 if fin_src:
     src_txt += f" · 금액: {fin_src[1]}"
+if wb.finance_as_of:
+    src_txt += f" ({wb.finance_as_of:%Y.%m.%d} 기준)"
 st.markdown(f"<div class='hdr'><h1>{wb.company or '경영'} 대시보드</h1>"
             f"<div class='meta'>기준일 <b>{asof:%Y-%m-%d}</b> · 보고서 작성일 {wb.report_date or '-'} · REV {wb.revision or '-'}"
             f"<br>{src_txt}</div></div>", unsafe_allow_html=True)
@@ -426,11 +429,11 @@ def render_brief():
         st.markdown("\n".join(f"- **{x}**" for x in b["headline"]))
         cols_ = st.columns(3) if not MOBILE else [st.container()] * 3
         blocks = [
-            ("💵 들어온 돈", [f"{p} {k} **{won(a)}**" for p, k, a, d in b["new_in"]]),
-            ("💸 나간 외주 결제", [f"{v or '-'} · {p} {i} **{won(a)}**" for p, v, i, a, d in b["new_out"]]),
+            ("💵 들어온 돈", [f"{p} {k} **{money(a)}**" for p, k, a, d in b["new_in"]]),
+            ("💸 나간 외주 결제", [f"{v or '-'} · {p} {i} **{money(a)}**" for p, v, i, a, d in b["new_out"]]),
             ("⏰ 늦춰진 일정", [f"{p} {it} {o[2:]}→{n[2:]} **+{dd}일**" for p, it, o, n, dd in b["delays"][:6]]),
-            ("📥 7일 내 받을 돈", [f"{d:%m.%d}{' ⛔' if d < asof else ''} {p} {k} **{won(a)}**" for p, k, a, d in b["due_in"]]),
-            ("📤 7일 내 줄 돈", [f"{d:%m.%d} {v or '-'} · {p} **{won(a)}**" for p, v, i, a, d in b["due_out"]]),
+            ("📥 7일 내 받을 돈", [f"{d:%m.%d}{' ⛔' if d < asof else ''} {p} {k} **{money(a)}**" for p, k, a, d in b["due_in"]]),
+            ("📤 7일 내 줄 돈", [f"{d:%m.%d}{' ⚠️' if d < asof else ''} {v or '-'} · {p} **{money(a)}**" for p, v, i, a, d in b["due_out"]]),
             ("🚢 7일 내 인도", [f"{d:%m.%d} {n}" for n, d in b["handover"]]),
         ]
         shown = [(t_, rows) for t_, rows in blocks if rows]

@@ -30,7 +30,7 @@ sys.path.insert(0, str(HERE))
 
 from core import analytics as A                                   # noqa: E402
 from core.history import HistoryStore                             # noqa: E402
-from core.html_report import build_html                           # noqa: E402
+from core.html_report import build_html, money                    # noqa: E402
 from core.loader import combine                                    # noqa: E402
 from core.parser import to_snapshot                                # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
@@ -55,18 +55,18 @@ def email_body(b: dict, wb, asof: dt.date, url: str) -> str:
             sec.append(f"<p style='margin:14px 0 4px;font-weight:700'>{E(title)}</p>"
                        f"<ul style='margin:0;padding-left:18px'>{''.join(rows)}</ul>")
 
-    block("어제 이후 들어온 돈", [f"<li>{E(p)} {E(k)} <b>{eok(a)}</b></li>" for p, k, a, d in b["new_in"]])
-    block("어제 이후 나간 외주 결제", [f"<li>{E(v or '-')} · {E(p)} {E(i)} <b>{eok(a)}</b></li>"
+    block("어제 이후 들어온 돈", [f"<li>{E(p)} {E(k)} <b>{money(a)}</b></li>" for p, k, a, d in b["new_in"]])
+    block("어제 이후 나간 외주 결제", [f"<li>{E(v or '-')} · {E(p)} {E(i)} <b>{money(a)}</b></li>"
                                 for p, v, i, a, d in b["new_out"]])
     block("늦춰진 일정", [f"<li>{E(p)} {E(it)} {E(o)}→{E(n)} <b>+{dd}일</b></li>" for p, it, o, n, dd in b["delays"][:8]])
-    block("7일 내 받을 돈", [f"<li>{d:%m.%d}{' ⛔연체' if d < asof else ''} {E(p)} {E(k)} <b>{eok(a)}</b></li>"
+    block("7일 내 받을 돈", [f"<li>{d:%m.%d}{' ⛔연체' if d < asof else ''} {E(p)} {E(k)} <b>{money(a)}</b></li>"
                          for p, k, a, d in b["due_in"]])
-    block("7일 내 줄 돈 (외주)", [f"<li>{d:%m.%d} {E(v or '-')} · {E(p)} {E(i)} <b>{eok(a)}</b></li>"
+    block("7일 내 줄 돈 (외주)", [f"<li>{d:%m.%d}{' ⚠️지남' if d < asof else ''} {E(v or '-')} · {E(p)} {E(i)} <b>{money(a)}</b></li>"
                               for p, v, i, a, d in b["due_out"]])
     flagged = t[t["상태"].isin(["위험", "주의"])]
     block("확인 필요 공사", [f"<li>{'⛔' if r['상태'] == '위험' else '⚠️'} {E(r['공사명'])} – {E(r['사유'])}</li>"
                          for _, r in flagged.iterrows()])
-    money = (f"총 수주 {eok(fin['total_order'])} · 수금 {eok(fin['collected'])} ({fin['collect_rate']:.0f}%) · "
+    money_line = (f"총 수주 {eok(fin['total_order'])} · 수금 {eok(fin['collected'])} ({fin['collect_rate']:.0f}%) · "
              f"미수 {eok(fin['receivable'])} · 외주 미지급 {eok(fin['out_unpaid'])}"
              if fin["total_order"] else "수주·수금 금액 미입력")
     link = (f"<p style='margin:18px 0'><a href='{E(url)}' style='background:#1f5fbf;color:#fff;padding:10px 16px;"
@@ -75,7 +75,7 @@ def email_body(b: dict, wb, asof: dt.date, url: str) -> str:
             f"max-width:640px'><p style='color:#555a63;margin:0'>{asof:%Y년 %m월 %d일} 아침 브리핑</p>"
             f"<h2 style='margin:4px 0 10px;font-size:20px'>{E(wb.company or '')} 공사·자금 현황</h2>"
             f"<div style='background:#dfe9f8;border-radius:10px;padding:10px 14px'><ul style='margin:0;padding-left:18px;"
-            f"font-weight:600'>{li}</ul></div><p style='color:#555a63;font-size:13px'>{money}</p>"
+            f"font-weight:600'>{li}</ul></div><p style='color:#555a63;font-size:13px'>{money_line}</p>"
             f"{''.join(sec)}{link}<p style='color:#8a8f98;font-size:12px;margin-top:18px'>전체 보고서는 첨부한 HTML 파일을 "
             f"여세요. 카톡으로 그대로 전달할 수 있습니다.</p></div>")
 

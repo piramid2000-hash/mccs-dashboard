@@ -108,6 +108,10 @@ def vendor_for(p: Project, category: str, vendors) -> str:
     return v.name + (" (거래중지)" if "거래중지" in v.risk_flags else "")
 
 
+PKG_ITEM_KEYWORDS = {"서포트": ["서포트", "관통"], "하우징": ["하우징", "케이싱"],
+                     "장비": ["에어컨", "냉동기", "장비"], "보온재·설치": ["설치", "보온재"]}
+
+
 def outsourcing_matrix(wb: Workbook, asof: dt.date) -> pd.DataFrame:
     rows = []
     for p in wb.projects:
@@ -124,10 +128,16 @@ def outsourcing_matrix(wb: Workbook, asof: dt.date) -> pd.DataFrame:
             if pkg == "보온재·설치":
                 ins = vendor_for(p, "INSULATION", wb.vendors)
                 vend = " / ".join(x for x in (ins, vend) if x)
-            # 외주비 시트가 있으면 실제 업체명으로 덮어쓰기
+            # 경리부 자료가 있으면 실제 업체명으로 덮어쓰기
+            kws = PKG_ITEM_KEYWORDS[pkg]
+            real = []
             for o in wb.outsourcing:
-                if o.get("project") == p.name and pkg.split("·")[0] in (o.get("item") or ""):
-                    vend = o.get("vendor") or vend
+                item_ = o.get("item") or ""
+                if p.name in (o.get("projects") or [o.get("project")]) and any(k in item_ for k in kws) \
+                        and not ("설치" in item_ and pkg != "보온재·설치") and o.get("vendor") not in real:
+                    real.append(o.get("vendor"))
+            if real:
+                vend = " / ".join(x for x in real if x)
             rows.append({
                 "공사명": p.name, "패키지": pkg, "상태": status, "점수": score, "업체": vend,
                 "발주일": p.milestones[po].date if po in p.milestones else None,
@@ -146,8 +156,10 @@ def project_table(wb: Workbook, asof: dt.date) -> pd.DataFrame:
         billed[c["project"]] += c.get("billed") or 0
         paid[c["project"]] += c.get("paid") or 0
     cost = defaultdict(float)
-    for o in wb.outsourcing:
-        cost[o["project"]] += o.get("amount") or 0
+    for o in wb.outsourcing:  # 2척 묶음 발주는 반씩 배분
+        members = o.get("projects") or [o["project"]]
+        for m_ in members:
+            cost[m_] += (o.get("amount") or 0) / len(members)
     rows = []
     for p in wb.projects:
         nm = next_milestone(p, asof)
@@ -338,7 +350,8 @@ def morning_brief(prev: dict | None, cur: dict, wb: Workbook, asof: dt.date) -> 
     delays.sort(key=lambda x: -x[4])
 
     week = asof + dt.timedelta(days=7)
-    due_in = [(c["project"], c.get("kind") or "", (c.get("billed") or 0) - (c.get("paid") or 0), c["due_date"])
+    due_in = [(c["project"], c.get("kind") or "",
+               None if c.get("billed") is None else (c.get("billed") or 0) - (c.get("paid") or 0), c["due_date"])
               for c in wb.collections if c.get("due_date") and not c.get("paid_date") and c["due_date"] <= week]
     due_out = [(o["project"], o.get("vendor") or "", o.get("item") or "",
                 (o.get("amount") or 0) - (o.get("paid") or 0), o["due_date"])
@@ -347,6 +360,9 @@ def morning_brief(prev: dict | None, cur: dict, wb: Workbook, asof: dt.date) -> 
                 if "HANDOVER" in p.milestones and asof <= p.milestones["HANDOVER"].date <= week]
 
     lines = []
+    fa = getattr(wb, "finance_as_of", None)
+    if fa and (asof - fa).days > 3:
+        lines.append(f"금액 자료는 {fa:%m.%d} 기준입니다 ({(asof - fa).days}일 전). 그 뒤 수금·지급은 반영 전.")
     if prev is None:
         lines.append("비교할 이전 보고가 없어 오늘 현황만 보여 드립니다.")
     else:
@@ -358,7 +374,11 @@ def morning_brief(prev: dict | None, cur: dict, wb: Workbook, asof: dt.date) -> 
             lines.append(f"일정 지연 {len(delays)}건 (최대 {delays[0][4]}일)")
     over_in = [x for x in due_in if x[3] < asof]
     if over_in:
-        lines.append(f"⛔ 수금 연체 {len(over_in)}건 {_won_eok(sum(x[2] for x in over_in))}")
+        lines.append(f"⛔ 수금 예정일 지남 {len(over_in)}건" + (f" {_won_eok(sum(x[2] or 0 for x in over_in))}"
+                                                           if any(x[2] for x in over_in) else ""))
+    over_out = [x for x in due_out if x[4] < asof]
+    if over_out:
+        lines.append(f"⚠️ 외주 지급 예정일 지남 {len(over_out)}건 {_won_eok(sum(x[3] or 0 for x in over_out))} (지급 여부 확인)")
     if handover:
         lines.append("이번 주 인도: " + ", ".join(n for n, _ in handover))
     return {"has_prev": prev is not None, "prev_name": (prev or {}).get("file_name"),

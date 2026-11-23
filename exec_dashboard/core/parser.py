@@ -73,6 +73,8 @@ class Workbook:
     outsourcing: list
     warnings: list
     sheets: list
+    finance_as_of: Optional[dt.date] = None   # 금액 자료 기준일 (경리부 '○○ 기준')
+    finance_file: str = ""
 
     @property
     def has_finance(self) -> bool:
@@ -374,14 +376,18 @@ def parse_workbook(data: bytes, file_name: str = "") -> Workbook:
     warnings = []
     wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
     status_ws = _find_sheet(wb, "업무현황", "업무 현황")
-    if status_ws is None:
+    hvac_ws = _find_sheet(wb, "매입매출")
+    if status_ws is None and hvac_ws is None:
         status_ws = wb.worksheets[0]
         warnings.append(("warn", f"'업무 현황' 시트가 없어 첫 시트 '{status_ws.title}'를 읽었습니다."))
-    projects, report_date, revision = _parse_status_sheet(status_ws, warnings)
-    company = _clean(status_ws["B1"].value) if status_ws["B1"].value else ""
+    if status_ws is not None:
+        projects, report_date, revision = _parse_status_sheet(status_ws, warnings)
+        company = _clean(status_ws["B1"].value) if status_ws["B1"].value else ""
+    else:  # 경리부 매입매출현황만 있는 파일
+        projects, report_date, revision, company = [], None, "", ""
 
     dws = _find_sheet(wb, "도면현황", "도면")
-    if dws is not None and dws is not status_ws:
+    if dws is not None and status_ws is not None and dws is not status_ws:
         _merge_drawing_sheet(dws, projects, warnings)
 
     vws = _find_sheet(wb, "발주업체")
@@ -394,11 +400,16 @@ def parse_workbook(data: bytes, file_name: str = "") -> Workbook:
     orders = fin("orders", "수주")
     collections = fin("collections", "수금")
     outsourcing = fin("outsourcing", "외주비", "외주")
+    finance_as_of = None
+    if hvac_ws is not None and not (orders or collections or outsourcing):
+        from .hvac import parse_hvac_sheet
+        h = parse_hvac_sheet(hvac_ws, warnings)
+        orders, collections, outsourcing, finance_as_of = h["orders"], h["collections"], h["outsourcing"], h["as_of"]
 
-    known = {p.name for p in projects}
+    known = {p.name for p in projects} if projects else set()
     for rows, label in ((orders, "수주"), (collections, "수금"), (outsourcing, "외주비")):
         for rec in rows:
-            if rec.get("project") and rec["project"] not in known:
+            if known and rec.get("project") and rec["project"] not in known:
                 warnings.append(("warn", f"[{label}] 공사명 '{rec['project']}'이(가) 업무 현황에 없습니다."))
 
     _sanity_checks(projects, warnings)
@@ -407,6 +418,7 @@ def parse_workbook(data: bytes, file_name: str = "") -> Workbook:
         report_date=report_date, revision=revision, company=company,
         projects=projects, vendors=vendors, orders=orders, collections=collections,
         outsourcing=outsourcing, warnings=warnings, sheets=wb.sheetnames,
+        finance_as_of=finance_as_of, finance_file=file_name if (orders or collections or outsourcing) else "",
     )
 
 
@@ -424,6 +436,13 @@ def _sanity_checks(projects, warnings):
         for a, b, msg in rules:
             if a in m and b in m and m[a].date > m[b].date and m[a].precision == "day":
                 warnings.append(("check", f"[{p.name}] {msg} ({m[a].date:%y.%m.%d} → {m[b].date:%y.%m.%d}). 오기 여부 확인 필요."))
+        for po, (dl, lead, lab) in config.PO_LEAD_DAYS.items():  # 발주 시점 기준 (사업부 보고서)
+            if po in m and dl in m:
+                gap = (m[dl].date - m[po].date).days
+                if gap < lead - config.PO_LEAD_TOLERANCE:
+                    warnings.append(("check", f"[{p.name}] {config.MILESTONES[po][0]}({m[po].date:%y.%m.%d})가 "
+                                              f"{config.MILESTONES[dl][0]}({m[dl].date:%y.%m.%d}) {gap}일 전입니다. "
+                                              f"기준 {lab} 전({lead}일)보다 촉박합니다."))
         if "HANDOVER" not in m:
             warnings.append(("info", f"[{p.name}] 인도일이 없습니다 ({p.raw.get('handover') or '공란'})."))
 

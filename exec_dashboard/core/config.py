@@ -57,3 +57,15 @@ VENDOR_RISK_KEYWORDS = ["거래중지", "업무 중단", "비협조", "1명", "�
 # 경보 기준
 DUE_SOON_DAYS = 30          # 이 기간 안에 인도/수금 예정이면 '임박'
 HANDOVER_RISK_DAYS = 45     # 인도 N일 전인데 장비 납품이 안 끝났으면 '위험'
+
+# 발주 시점 기준 (HVAC&R 사업부 업무현황 보고서): 납품/설치 대비 몇 일 전에 발주해야 하는가
+PO_LEAD_DAYS = {
+    "PO_SUPPORT": ("DLV_SUPPORT", 45, "서포트 1.5개월"),
+    "PO_HOUSING": ("DLV_HOUSING", 75, "하우징 2.5개월"),
+    "PO_EQUIP": ("DLV_EQUIP", 75, "장비 2.5개월"),
+    "PO_INSTALL": ("INSTALL_START", 30, "설치 1개월"),
+}
+PO_LEAD_TOLERANCE = 7  # 기준보다 이 일수 이상 짧을 때만 표시
+
+# 같은 업체의 다른 표기 → 대표 표기 (경리부 자료와 업무현황 표기를 맞춤)
+VENDOR_ALIASES = {"탈렌트엘엔지": "탤런트엘엔지", "탈렌트": "탤런트엘엔지", "탈랜트엘엔지": "탤런트엘엔지"}
