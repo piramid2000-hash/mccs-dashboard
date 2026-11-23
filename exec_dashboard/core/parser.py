@@ -428,13 +428,30 @@ def _sanity_checks(projects, warnings):
             warnings.append(("info", f"[{p.name}] 인도일이 없습니다 ({p.raw.get('handover') or '공란'})."))
 
 
+def _iso(d):
+    return d.isoformat() if d else None
+
+
 def to_snapshot(wb: Workbook) -> dict:
-    """버전 비교용 JSON 직렬화 가능한 요약."""
-    return {
-        "file_name": wb.file_name, "file_hash": wb.file_hash,
-        "report_date": wb.report_date.isoformat() if wb.report_date else None,
+    """버전 비교용 JSON 요약. 일정 + 금액(수주·수금·외주 결제)을 담는다.
+
+    file_hash 는 '내용' 기준이라, 업무현황 파일은 그대로고 경리부 금액 파일만 바뀌어도 새 버전으로 잡힌다.
+    """
+    import json
+    snap = {
+        "file_name": wb.file_name,
+        "report_date": _iso(wb.report_date),
         "revision": wb.revision,
         "projects": {p.name: {k: m.date.isoformat() for k, m in p.milestones.items()} for p in wb.projects},
         "orders": {r["project"]: r.get("amount") for r in wb.orders},
         "collected": sum(r.get("paid") or 0 for r in wb.collections),
+        "collections": [{"p": r.get("project"), "k": r.get("kind") or "", "due": _iso(r.get("due_date")),
+                         "billed": r.get("billed"), "pd": _iso(r.get("paid_date")), "paid": r.get("paid")}
+                        for r in wb.collections],
+        "payments": [{"p": r.get("project"), "v": r.get("vendor") or "", "i": r.get("item") or "",
+                      "amt": r.get("amount"), "due": _iso(r.get("due_date")), "pd": _iso(r.get("paid_date")),
+                      "paid": r.get("paid")} for r in wb.outsourcing],
     }
+    snap["file_hash"] = hashlib.sha1(json.dumps(snap, sort_keys=True, ensure_ascii=False,
+                                                default=str).encode()).hexdigest()[:12]
+    return snap

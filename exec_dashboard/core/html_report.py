@@ -145,6 +145,13 @@ table.fin th:first-child,table.fin td:first-child{text-align:left}
 table.fin th{color:var(--ink2);font-weight:600}
 .note{font-size:.8rem;color:var(--ink3)}
 .checks{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0;list-style:none;display:grid;gap:6px;font-size:.86rem}
+.brief{background:var(--accent-soft);border-radius:14px;padding:14px 16px}
+.brief h2{margin-bottom:6px}
+.bh{margin:0 0 10px;padding-left:18px;font-weight:600}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.bb{background:var(--card);border-radius:10px;padding:9px 12px;font-size:.86rem;min-width:0}
+.bb ul{margin:4px 0 0;padding-left:16px}
+.bb li{margin:2px 0}
 footer{color:var(--ink3);font-size:.75rem;text-align:center}
 @media (max-width:480px){header h1{font-size:1.25rem}.kpi .v{font-size:1.2rem}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -213,7 +220,32 @@ def _gantt_svg(wb: Workbook, asof: dt.date, names: list[str]) -> str:
             f"<div class='scroll gscroll'>{''.join(out)}</div></div>")
 
 
-def build_html(wb: Workbook, asof: dt.date, source_label: str = "") -> str:
+def brief_html(b: dict, asof: dt.date) -> str:
+    """아침 브리핑 블록 (HTML 보고서·메일 본문 공용). 인라인 스타일 최소화를 위해 클래스 사용."""
+    head = "".join(f"<li>{E(x)}</li>" for x in b["headline"])
+    blocks = []
+
+    def tbl(title, rows):
+        if rows:
+            blocks.append(f"<div class='bb'><b>{E(title)}</b><ul>{''.join(rows)}</ul></div>")
+
+    tbl("어제 이후 들어온 돈", [f"<li>{E(p)} {E(k)} <b>{won(a)}</b>{(' · ' + d[2:].replace('-', '.')) if d else ''}</li>"
+                           for p, k, a, d in b["new_in"]])
+    tbl("어제 이후 나간 외주 결제", [f"<li>{E(v or '-')} · {E(p)} {E(i)} <b>{won(a)}</b></li>"
+                              for p, v, i, a, d in b["new_out"]])
+    tbl("늦춰진 일정", [f"<li>{E(p)} {E(it)} {E(o[2:])}→{E(n[2:])} <b>+{dd}일</b></li>"
+                     for p, it, o, n, dd in b["delays"][:8]])
+    tbl("7일 내 받을 돈", [f"<li>{d:%m.%d}{' ⛔연체' if d < asof else ''} · {E(p)} {E(k)} <b>{won(a)}</b></li>"
+                       for p, k, a, d in b["due_in"]])
+    tbl("7일 내 줄 돈 (외주)", [f"<li>{d:%m.%d} · {E(v or '-')} · {E(p)} {E(i)} <b>{won(a)}</b></li>"
+                            for p, v, i, a, d in b["due_out"]])
+    tbl("7일 내 인도", [f"<li>{d:%m.%d} · {E(n)}</li>" for n, d in b["handover"]])
+    since = f"직전 보고({E(b['prev_name'] or '')}) 대비" if b["has_prev"] else "첫 보고"
+    return (f"<section class='brief'><h2>오늘 아침 브리핑 <small>{since}</small></h2>"
+            f"<ul class='bh'>{head}</ul><div class='bgrid'>{''.join(blocks)}</div></section>")
+
+
+def build_html(wb: Workbook, asof: dt.date, source_label: str = "", brief: dict | None = None) -> str:
     t = A.project_table(wb, asof)
     fin = A.finance_summary(wb, asof)
     rank = {"위험": 0, "주의": 1, "정상": 2, "완료": 3}
@@ -242,6 +274,10 @@ def build_html(wb: Workbook, asof: dt.date, source_label: str = "") -> str:
     P.append("<section class='kpis'>" + "".join(
         f"<div class='kpi {c}'><div class='l'>{E(a)}</div><div class='v'>{E(b)}</div><div class='s'>{E(s)}</div></div>"
         for a, b, s, c in k) + "</section>")
+
+    # ---- 아침 브리핑 (직전 보고 대비)
+    if brief:
+        P.append(brief_html(brief, asof))
 
     # ---- 확인 필요
     flagged = t[t["상태"].isin(["위험", "주의"])]
@@ -335,6 +371,20 @@ def build_html(wb: Workbook, asof: dt.date, source_label: str = "") -> str:
                      + "".join(f"<span class='flag'>{E(f)}</span>" for f in v.risk_flags) + "</div>" for v in main_v)
         P.append("<section><h2>주요 외주업체 <small>주의 표시는 엑셀 '특성' 기준 · 연락처 생략</small></h2>"
                  f"<div class='vend'>{vs}</div></section>")
+
+    # ---- 외주업체 결제
+    vp = A.vendor_payables(wb, asof)
+    if not vp.empty:
+        trs = "".join(
+            f"<tr><td>{E(r['업체'])}</td><td>{won(r['발주액'])}</td><td>{won(r['지급액'])}</td>"
+            f"<td>{won(r['미지급'])}</td><td>{r['다음 지급']:%m.%d}</td></tr>" if pd.notna(r["다음 지급"]) else
+            f"<tr><td>{E(r['업체'])}</td><td>{won(r['발주액'])}</td><td>{won(r['지급액'])}</td>"
+            f"<td>{won(r['미지급'])}</td><td>{'연체' if r['연체'] else '-'}</td></tr>"
+            for _, r in vp.iterrows())
+        P.append(f"<section><h2>외주업체 결제 <small>미지급 {won(vp['미지급'].sum())}"
+                 f"{' · 연체 ' + won(vp['연체'].sum()) if vp['연체'].sum() else ''}</small></h2>"
+                 "<div class='scroll'><table class='fin'><tr><th>업체</th><th>발주</th><th>지급</th><th>미지급</th>"
+                 f"<th>다음 지급</th></tr>{trs}</table></div></section>")
 
     # ---- 자금
     if wb.orders or wb.collections:

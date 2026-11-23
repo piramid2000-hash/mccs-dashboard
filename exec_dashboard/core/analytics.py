@@ -267,3 +267,102 @@ def diff_snapshots(old: dict, new: dict) -> pd.DataFrame:
         if a != b:
             rows.append({"공사명": name, "항목": "수주금액", "이전": a, "변경": b, "차이(일)": None})
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------- 외주업체 결제
+def vendor_payables(wb: Workbook, asof: dt.date) -> pd.DataFrame:
+    """업체별 발주액·지급액·미지급·다음 지급예정 (외주비 시트 기준)."""
+    rows = []
+    for o in wb.outsourcing:
+        amt, paid = o.get("amount") or 0, o.get("paid") or 0
+        due = o.get("due_date")
+        open_ = amt - paid > 0
+        rows.append({"업체": o.get("vendor") or "(업체 미기재)", "발주액": amt, "지급액": paid,
+                     "미지급": max(amt - paid, 0),
+                     "다음 지급": due if open_ and due and due >= asof else None,
+                     "연체": max(amt - paid, 0) if open_ and due and due < asof else 0,
+                     "건수": 1})
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    df["다음 지급"] = pd.to_datetime(df["다음 지급"])
+    g = df.groupby("업체").agg({"발주액": "sum", "지급액": "sum", "미지급": "sum", "연체": "sum", "건수": "sum",
+                               "다음 지급": "min"}).reset_index()
+    g["다음 지급"] = g["다음 지급"].dt.date
+    return g.sort_values("미지급", ascending=False)
+
+
+# ---------------------------------------------------------------- 아침 브리핑
+def _won_eok(v) -> str:
+    return f"{(v or 0) / 1e8:,.2f}억"
+
+
+def morning_brief(prev: dict | None, cur: dict, wb: Workbook, asof: dt.date) -> dict:
+    """어제(직전 버전) 대비 오늘 아침에 대표가 알아야 할 것.
+
+    new_in   : 새로 들어온 수금  [(공사, 구분, 금액, 수금일)]
+    new_out  : 새로 나간 외주 결제 [(공사, 업체, 품목, 금액, 지급일)]
+    delays   : 늦춰진 일정 [(공사, 항목, 이전, 변경, 일수)]
+    pulled   : 앞당겨진 일정
+    due_in / due_out : 7일 내 수금·지급 예정 (미완료)
+    handover : 7일 내 인도
+    """
+    def key_c(r):
+        return (r.get("p"), r.get("k"), r.get("due"))
+
+    def key_o(r):
+        return (r.get("p"), r.get("v"), r.get("i"), r.get("due"))
+
+    new_in, new_out = [], []
+    if prev is not None:
+        pc = {key_c(r): r for r in prev.get("collections", [])}
+        for r in cur.get("collections", []):
+            before = pc.get(key_c(r), {})
+            got = (r.get("paid") or 0) - (before.get("paid") or 0)
+            if got > 0:
+                new_in.append((r["p"], r["k"], got, r.get("pd")))
+        po = {key_o(r): r for r in prev.get("payments", [])}
+        for r in cur.get("payments", []):
+            before = po.get(key_o(r), {})
+            out = (r.get("paid") or 0) - (before.get("paid") or 0)
+            if out > 0:
+                new_out.append((r["p"], r["v"], r["i"], out, r.get("pd")))
+
+    delays, pulled = [], []
+    if prev is not None:
+        d = diff_snapshots(prev, cur)
+        if not d.empty:
+            for _, r in d[d["차이(일)"].notna()].iterrows():
+                item = (r["공사명"], r["항목"], r["이전"], r["변경"], int(r["차이(일)"]))
+                (delays if r["차이(일)"] > 0 else pulled).append(item)
+    delays.sort(key=lambda x: -x[4])
+
+    week = asof + dt.timedelta(days=7)
+    due_in = [(c["project"], c.get("kind") or "", (c.get("billed") or 0) - (c.get("paid") or 0), c["due_date"])
+              for c in wb.collections if c.get("due_date") and not c.get("paid_date") and c["due_date"] <= week]
+    due_out = [(o["project"], o.get("vendor") or "", o.get("item") or "",
+                (o.get("amount") or 0) - (o.get("paid") or 0), o["due_date"])
+               for o in wb.outsourcing if o.get("due_date") and not o.get("paid_date") and o["due_date"] <= week]
+    handover = [(p.name, p.milestones["HANDOVER"].date) for p in wb.projects
+                if "HANDOVER" in p.milestones and asof <= p.milestones["HANDOVER"].date <= week]
+
+    lines = []
+    if prev is None:
+        lines.append("비교할 이전 보고가 없어 오늘 현황만 보여 드립니다.")
+    else:
+        lines.append(f"수금 {len(new_in)}건 {_won_eok(sum(x[2] for x in new_in))} 입금"
+                     if new_in else "어제 이후 새 수금 없음")
+        lines.append(f"외주 결제 {len(new_out)}건 {_won_eok(sum(x[3] for x in new_out))} 지급"
+                     if new_out else "어제 이후 외주 결제 없음")
+        if delays:
+            lines.append(f"일정 지연 {len(delays)}건 (최대 {delays[0][4]}일)")
+    over_in = [x for x in due_in if x[3] < asof]
+    if over_in:
+        lines.append(f"⛔ 수금 연체 {len(over_in)}건 {_won_eok(sum(x[2] for x in over_in))}")
+    if handover:
+        lines.append("이번 주 인도: " + ", ".join(n for n, _ in handover))
+    return {"has_prev": prev is not None, "prev_name": (prev or {}).get("file_name"),
+            "prev_saved": (prev or {}).get("saved_at"),
+            "new_in": new_in, "new_out": new_out, "delays": delays, "pulled": pulled,
+            "due_in": sorted(due_in, key=lambda x: x[3]), "due_out": sorted(due_out, key=lambda x: x[4]),
+            "handover": handover, "headline": lines}

@@ -261,10 +261,13 @@ if demo and not wb.has_finance:
 # 버전 이력 저장
 hist = HistoryStore(HISTORY_DIR)
 snap = to_snapshot(wb)
-try:
-    hist.save(snap)
-except OSError:
-    pass
+prev_snap = hist.previous_of(snap["file_hash"])
+if not is_demo:  # 예시 금액은 이력에 남기지 않음
+    try:
+        hist.save(snap)
+    except OSError:
+        pass
+brief = A.morning_brief(None if is_demo else prev_snap, snap, wb, asof)
 
 # 자동 새로고침: 폴더의 최신 파일이 바뀌면 전체 다시 그리기
 if refresh != "끔" and mode != "파일 직접 올리기":
@@ -298,7 +301,7 @@ fin = A.finance_summary(wb, asof)
 
 # ------------------------------------------------------------------ 카톡 공유용 HTML (예시 금액은 넣지 않음)
 if not is_demo:
-    share_slot.download_button("📤 카톡 공유용 HTML 받기", build_html(wb, asof, wb_name).encode("utf-8"),
+    share_slot.download_button("📤 카톡 공유용 HTML 받기", build_html(wb, asof, wb_name, brief=brief).encode("utf-8"),
                                f"업무현황_{asof:%y%m%d}.html", "text/html", use_container_width=True,
                                help="파일 하나로 된 보고서. 카톡으로 보내면 휴대폰에서 바로 열립니다. 업체 연락처는 빠집니다.")
 else:
@@ -414,7 +417,30 @@ def render_flagged():
         st.caption("특이사항 없음 ✅")
 
 
+def render_brief():
+    b = brief
+    since = f"직전 보고 대비 ({b['prev_saved'][:16].replace('T', ' ')} 저장본)" if b["has_prev"] and b["prev_saved"] else "첫 보고"
+    with st.container(border=True):
+        st.markdown(f"#### 🌅 오늘 아침 브리핑  \n<span style='color:#6b6a66;font-size:.8rem'>{since}</span>",
+                    unsafe_allow_html=True)
+        st.markdown("\n".join(f"- **{x}**" for x in b["headline"]))
+        cols_ = st.columns(3) if not MOBILE else [st.container()] * 3
+        blocks = [
+            ("💵 들어온 돈", [f"{p} {k} **{won(a)}**" for p, k, a, d in b["new_in"]]),
+            ("💸 나간 외주 결제", [f"{v or '-'} · {p} {i} **{won(a)}**" for p, v, i, a, d in b["new_out"]]),
+            ("⏰ 늦춰진 일정", [f"{p} {it} {o[2:]}→{n[2:]} **+{dd}일**" for p, it, o, n, dd in b["delays"][:6]]),
+            ("📥 7일 내 받을 돈", [f"{d:%m.%d}{' ⛔' if d < asof else ''} {p} {k} **{won(a)}**" for p, k, a, d in b["due_in"]]),
+            ("📤 7일 내 줄 돈", [f"{d:%m.%d} {v or '-'} · {p} **{won(a)}**" for p, v, i, a, d in b["due_out"]]),
+            ("🚢 7일 내 인도", [f"{d:%m.%d} {n}" for n, d in b["handover"]]),
+        ]
+        shown = [(t_, rows) for t_, rows in blocks if rows]
+        for i, (t_, rows) in enumerate(shown):
+            with cols_[i % 3]:
+                st.markdown(f"**{t_}**\n" + "\n".join(f"- {r}" for r in rows))
+
+
 with tab_over:
+    render_brief()
     if MOBILE:
         render_flagged()
         render_upcoming()
@@ -527,6 +553,18 @@ with tab_out:
                                  hovertemplate="%{y} · " + stt + ": %{x}건<extra></extra>"))
         fig.update_layout(barmode="stack")
         show(base_layout(fig, 90 + 36 * len(vv)))
+
+    vp = A.vendor_payables(wb, asof)
+    if not vp.empty:
+        st.subheader("외주업체 결제 현황")
+        st.caption("경리부 '외주비' 시트 기준 · 미지급이 큰 순서")
+        vshow = vp.assign(**{k: vp[k] / 1e6 for k in ("발주액", "지급액", "미지급", "연체")})
+        vshow["다음 지급"] = pd.to_datetime(vshow["다음 지급"])
+        st.dataframe(vshow[["업체", "발주액", "지급액", "미지급", "연체", "다음 지급", "건수"]], hide_index=True,
+                     use_container_width=True,
+                     column_config={k: st.column_config.NumberColumn(f"{k}(백만)", format="%,.0f")
+                                    for k in ("발주액", "지급액", "미지급", "연체")}
+                     | {"다음 지급": st.column_config.DateColumn(format="YY.MM.DD")})
 
     st.subheader("외주업체 특성 · 리스크")
     if not wb.vendors:
