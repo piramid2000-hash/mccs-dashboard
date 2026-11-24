@@ -6,7 +6,7 @@
 (function () {
   "use strict";
   var KDF_SALT = "wonieng-ceo-app-v1"; // 공개 솔트 (빌드 스크립트와 같아야 함)
-  var TABS = ["home", "proj", "out", "money", "check"];
+  var TABS = ["home", "proj", "out", "money", "docs", "check", "labels"];
   var $ = function (id) { return document.getElementById(id); };
   var key = null, payload = null, lastGenerated = null, ranReportJs = false;
   var source = "data.enc"; // 대표용 실제 자료. 심사·시연용 비밀번호면 demo.enc
@@ -71,6 +71,8 @@
     $("stamp").textContent = "업데이트 " + fmtTime(p.generated) + (p.finance_as_of ? " · 금액 " + p.finance_as_of.slice(5).replace("-", ".") + " 기준" : "");
     var n = p.check_count || 0;
     $("checkDot").hidden = !n; $("checkDot").textContent = n > 99 ? "99+" : n;
+    var dn = p.docs_pending || 0;  // 도면 수령 미확인 인원
+    $("docsDot").hidden = !dn; $("docsDot").textContent = dn > 99 ? "99+" : dn;
     show(currentTab());
   }
 
@@ -183,6 +185,25 @@
   $("lockForm").addEventListener("submit", unlock);
   $("refreshBtn").addEventListener("click", function () { banner(""); load(true); });
   $("lockBtn").addEventListener("click", function () { lockOut(""); });
+
+  // ---------- 도면 탭: 카톡 보내기 · QR 라벨 ----------
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target.closest("[data-share-url],[data-go-labels],[data-go-docs],[data-print-now]") : null;
+    if (!t) return;
+    if (t.hasAttribute("data-go-labels")) { location.hash = "labels"; return; }
+    if (t.hasAttribute("data-go-docs")) { location.hash = "docs"; return; }
+    if (t.hasAttribute("data-print-now")) { window.print(); return; }
+    var url = t.getAttribute("data-share-url"), text = t.getAttribute("data-share-text") || "";
+    // 휴대폰: 공유 시트에서 카카오톡 선택 / PC: 메시지+링크를 복사해 카톡 PC 에 붙여넣기
+    if (navigator.share) {
+      navigator.share({ title: "도면 개정 안내", text: text, url: url }).catch(function () {});
+    } else {
+      var all = text + "\n" + url;
+      (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(function () {
+        t.textContent = "복사됨 · 카톡에 붙여넣기";
+      }, function () { window.prompt("복사해서 카톡에 붙여넣으세요", all); });
+    }
+  });
   document.addEventListener("visibilitychange", function () { if (!document.hidden && key) load(true); });
   window.addEventListener("online", function () { if (key) load(true); });
 

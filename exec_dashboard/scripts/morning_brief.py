@@ -32,6 +32,7 @@ from core import analytics as A                                   # noqa: E402
 from core.history import HistoryStore                             # noqa: E402
 from core.html_report import build_html, money                    # noqa: E402
 from core.loader import combine                                    # noqa: E402
+from core.drawings import load_from_files, memoize, status as dstatus  # noqa: E402
 from core.parser import to_snapshot                                # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
 
@@ -95,7 +96,7 @@ def main():
         src = GoogleDriveSource(os.environ["GDRIVE_FOLDER_ID"], load_service_account(os.environ.get("GDRIVE_SERVICE_ACCOUNT")))
     else:
         sys.exit("--folder 또는 GDRIVE_FOLDER_ID 가 필요합니다.")
-    files = src.list_files()
+    files = memoize(src.list_files())
     wb, name, fin_name = combine(files)
     if wb is None:
         sys.exit("업무 현황 엑셀을 찾지 못했습니다.")
@@ -107,6 +108,11 @@ def main():
     prev = hist.previous_of(snap["file_hash"])
     hist.save(snap)
     brief = A.morning_brief(prev, snap, wb, asof)
+    drawings, recipients, receipts = load_from_files(files, wb.warnings)
+    if drawings:
+        ds = dstatus(drawings, recipients, receipts, asof)
+        if ds["recent"] or ds["pending"]:
+            brief["headline"].append(f"도면 개정 {len(ds['recent'])}건(14일) · 수령 미확인 {ds['pending']}명")
     stale = newest and (dt.datetime.now() - newest).days >= 2
     if stale:
         brief["headline"].insert(0, f"⚠️ 최근 파일이 {newest:%m.%d} 것입니다. 경리부 업로드를 확인하세요.")

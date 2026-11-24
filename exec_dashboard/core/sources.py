@@ -47,6 +47,19 @@ class LocalFolderSource:
         return sorted(out, key=lambda f: f.modified, reverse=True)
 
 
+def _local_find(self, name: str):
+    """폴더(하위 폴더 포함)에서 이름이 같은 파일의 내용. 없으면 None."""
+    if not name or not self.available():
+        return None
+    for p in self.folder.rglob("*"):
+        if p.is_file() and p.name == name and ".history" not in p.parts:
+            return p.read_bytes()
+    return None
+
+
+LocalFolderSource.find_file = _local_find
+
+
 class GoogleDriveSource:
     label = "Google Drive"
 
@@ -98,6 +111,31 @@ class GoogleDriveSource:
             name = f["name"] if f["name"].lower().endswith(EXCEL_EXT) else f["name"] + ".xlsx"
             out.append(FileEntry(name, mod, int(f.get("size", 0) or 0), f"{fid}:{f.get('version')}", _load))
         return out
+
+
+def _drive_find(self, name: str):
+    """드라이브 폴더에서 이름이 같은 파일(PDF 도면 등)의 내용. 없으면 None."""
+    if not name:
+        return None
+    import io
+    from googleapiclient.http import MediaIoBaseDownload  # noqa: WPS433
+    svc = self._service()
+    safe = name.replace("\\", "\\\\").replace("'", "\\'")
+    res = svc.files().list(q=f"'{self.folder_id}' in parents and trashed=false and name='{safe}'",
+                           fields="files(id,name,mimeType)", pageSize=5,
+                           supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+    files = [f for f in res.get("files", []) if not f["mimeType"].startswith("application/vnd.google-apps")]
+    if not files:
+        return None
+    buf = io.BytesIO()
+    dl = MediaIoBaseDownload(buf, svc.files().get_media(fileId=files[0]["id"], supportsAllDrives=True))
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    return buf.getvalue()
+
+
+GoogleDriveSource.find_file = _drive_find
 
 
 def load_service_account(raw) -> dict:

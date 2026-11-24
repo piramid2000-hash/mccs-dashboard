@@ -33,6 +33,8 @@ from core.history import HistoryStore                             # noqa: E402
 from core.html_report import build_html                           # noqa: E402
 from core.loader import combine                                    # noqa: E402
 from core.parser import to_snapshot                                # noqa: E402
+from core.drawings import load_from_files, memoize, status as dstatus  # noqa: E402
+from core.drawings_build import build_docs                         # noqa: E402
 from core.sources import GoogleDriveSource, LocalFolderSource, load_service_account  # noqa: E402
 
 KST = ZoneInfo("Asia/Seoul")
@@ -62,6 +64,8 @@ def main():
     ap.add_argument("--folder")
     ap.add_argument("--out", default="dist")
     ap.add_argument("--asof")
+    ap.add_argument("--base-url", default=os.environ.get("APP_URL", ""),
+                    help="앱 주소 (QR·카톡 링크에 들어감). 기본: 환경변수 APP_URL")
     a = ap.parse_args()
 
     password = os.environ.get("APP_PASSWORD", "")
@@ -76,15 +80,28 @@ def main():
         src = GoogleDriveSource(os.environ["GDRIVE_FOLDER_ID"], load_service_account(os.environ.get("GDRIVE_SERVICE_ACCOUNT")))
     else:
         sys.exit("--folder 또는 GDRIVE_FOLDER_ID 가 필요합니다.")
-    wb, name, fin_name = combine(src.list_files())
+    files = memoize(src.list_files())
+    wb, name, fin_name = combine(files)
     if wb is None:
         sys.exit("업무 현황 엑셀을 찾지 못했습니다.")
+
+    # 도면 배포 (도면대장 엑셀이 폴더에 있고 DOC_SECRET 이 있을 때)
+    doc_secret = os.environ.get("DOC_SECRET", "")
+    drawings, recipients, receipts = load_from_files(files, wb.warnings)
+    if drawings and len(doc_secret) < 16:
+        print("도면대장이 있지만 DOC_SECRET(16자 이상)이 없어 도면 배포 기능을 건너뜁니다.")
+        drawings = []
+    if drawings and not a.base_url:
+        sys.exit("도면 링크·QR 에 넣을 앱 주소가 필요합니다: APP_URL 환경변수 또는 --base-url")
+    dstat = dstatus(drawings, recipients, receipts, asof) if drawings else None
 
     hist = HistoryStore(os.environ.get("HISTORY_DIR", str(HERE / ".history")))
     snap = to_snapshot(wb)
     prev = hist.previous_of(snap["file_hash"])
     hist.save(snap)
     brief = A.morning_brief(prev, snap, wb, asof)
+    if dstat and (dstat["recent"] or dstat["pending"]):
+        brief["headline"].append(f"도면 개정 {len(dstat['recent'])}건(14일) · 수령 미확인 {dstat['pending']}명")
 
     label = name + (f" + {fin_name}" if fin_name and fin_name != name else "")
     parts = build_html(wb, asof, label, brief=brief, parts=True)
@@ -99,6 +116,15 @@ def main():
     shutil.copytree(HERE / "pwa", out)
     sw = out / "sw.js"
     sw.write_text(sw.read_text(encoding="utf-8").replace("__BUILD__", now.strftime("%Y%m%d%H%M")), encoding="utf-8")
+    if drawings:
+        docs = build_docs(out, drawings, recipients, receipts, secret=doc_secret, base_url=a.base_url,
+                          ack_url=os.environ.get("ACK_URL", ""), find_file=getattr(src, "find_file", lambda n: None),
+                          company=wb.company, asof=asof, generated=payload["generated"], warnings=wb.warnings)
+        head, sep, tail = payload["body"].rpartition("<footer")  # 도면 탭은 맨 아래 안내줄보다 위에
+        payload["body"] = (head + docs["html"] + sep + tail) if sep else payload["body"] + docs["html"]
+        payload["css"] += docs["css"]
+        payload["docs_pending"] = docs["summary"]["pending"]
+        print(f"drawings: {docs['count']} docs, {docs['pdfs']} pdf, pending={docs['summary']['pending']}")
     box = encrypt(payload, password)
     (out / "data.enc").write_text(json.dumps(box), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")

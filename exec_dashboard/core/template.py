@@ -92,3 +92,70 @@ def demo_finance(projects, asof: dt.date, seed: int = 7):
                 outs.append({"project": p.name, "vendor": "", "item": item, "amount": base * ratio, "due_date": due,
                              "paid_date": due if paid else None, "paid": base * ratio if paid else None, "note": "예시"})
     return orders, cols, outs
+
+
+DRAWING_GUIDE = [
+    "■ 도면대장 작성 방법 (이 시트는 지워도 됩니다)",
+    "1. 도면대장: 도면이 개정될 때마다 아래에 한 줄을 추가합니다 (지우지 말고 쌓기). 같은 도면번호의 가장 최근 승인일 줄이 '최신 판'.",
+    "2. Rev: 승인도 A, B, C … / 공사도 1, 2, 3 … (사업부 규칙). 완성도는 '완성' 등 회사 규칙대로.",
+    "3. 파일: 같은 구글 드라이브 폴더에 올린 PDF 파일 이름을 그대로 (예: 10척3호_승인도_RevC.pdf). 없으면 비워 둬도 됩니다.",
+    "4. 배포처: '배포처' 시트의 키를 쉼표로 (예: 탤런트엘엔지, 나라냉열기). 그 사람들에게 카톡 링크와 수령 확인이 생깁니다.",
+    "5. 상태: 도면을 더 쓰지 않으면 '폐기'. 현장 QR 을 찍으면 '폐기된 도면' 경고가 뜹니다.",
+    "6. 미리 채운 줄은 업무현황 엑셀의 도면 날짜로 만든 초안입니다. 도면번호·Rev 를 회사 실제 값으로 고쳐 주세요.",
+]
+
+
+def build_drawing_template(projects=None, vendors=None) -> bytes:
+    """도면대장 + 배포처 양식. projects(업무현황 공사)·vendors(발주업체)가 있으면 초안을 채운다."""
+    wb = openpyxl.Workbook()
+    g = wb.active
+    g.title = "작성안내"
+    for i, line in enumerate(DRAWING_GUIDE, 1):
+        g.cell(i, 1, line).font = Font(bold=(i == 1), size=11)
+    g.column_dimensions["A"].width = 120
+
+    ws = wb.create_sheet("도면대장")
+    heads = ["도면번호", "도면명", "공사명", "Rev", "승인일", "개정내용", "파일", "배포처", "상태"]
+    widths = [22, 24, 22, 7, 12, 30, 30, 34, 8]
+    for c, (h, w) in enumerate(zip(heads, widths), 1):
+        cell = ws.cell(1, c, h)
+        cell.font, cell.fill, cell.border = Font(bold=True), HEAD_FILL, BOX
+        ws.column_dimensions[openpyxl.utils.get_column_letter(c)].width = w
+    ws.freeze_panes = "A2"
+    r = 2
+    for p in projects or []:
+        short = p.name.replace(" ", "")
+        for key, kind, rev in (("DWG_APPROVAL", "승인도", "A"), ("DWG_CONSTRUCTION", "공사도", "1")):
+            m = p.milestones.get(key)
+            if not m:
+                continue
+            for c, v in enumerate([f"{short}-{kind}", f"{kind}", p.name, rev, m.date, "최초 승인 (초안: 확인 필요)",
+                                   "", "", ""], 1):
+                cell = ws.cell(r, c, v)
+                cell.border = BOX
+            ws.cell(r, 5).number_format = "yyyy-mm-dd"
+            r += 1
+    for rr in range(r, r + 30):
+        for c in range(1, len(heads) + 1):
+            ws.cell(rr, c).border = BOX
+        ws.cell(rr, 5).number_format = "yyyy-mm-dd"
+    dv = DataValidation(type="list", formula1='"사용,폐기"', allow_blank=True)
+    ws.add_data_validation(dv)
+    dv.add(f"I2:I{r + 200}")
+
+    rs = wb.create_sheet("배포처")
+    for c, (h, w) in enumerate(zip(["키", "이름", "회사", "역할"], [18, 14, 18, 18]), 1):
+        cell = rs.cell(1, c, h)
+        cell.font, cell.fill, cell.border = Font(bold=True), HEAD_FILL, BOX
+        rs.column_dimensions[openpyxl.utils.get_column_letter(c)].width = w
+    rs.cell(2, 1, "현장반장"); rs.cell(2, 3, "원이엔지"); rs.cell(2, 4, "현장")  # 이름 칸은 비워 두면 키가 이름으로 쓰임
+    row = 3
+    for v in vendors or []:
+        if v.category == "MISC":
+            continue
+        rs.cell(row, 1, v.name); rs.cell(row, 3, v.name); rs.cell(row, 4, v.item.split("(")[0])
+        row += 1
+    rs.cell(row + 1, 1, "※ 키는 도면대장 '배포처' 칸에 쓰는 짧은 이름입니다. 전화번호는 적지 않아도 됩니다 (카톡은 담당자가 직접 보냄).")
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

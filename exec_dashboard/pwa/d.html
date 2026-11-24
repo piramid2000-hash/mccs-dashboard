@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>도면 확인</title>
+<meta property="og:title" content="도면 개정 안내 · 최신 판 확인">
+<meta property="og:description" content="링크를 눌러 최신 도면을 확인하고 수령 확인을 눌러 주세요.">
+<meta property="og:image" content="icons/icon-512.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="icon" href="icons/favicon.png">
+<style>
+:root{
+ /* 현장용: 한눈에 읽히는 큰 상태 띠 (최신=초록, 옛 판=빨강) */
+ --bg:#f6f5f2;--card:#ffffff;--ink:#16181d;--ink2:#555a63;--ink3:#8a8f98;--line:#e3e1dc;
+ --accent:#1f5fbf;--accent-soft:#dfe9f8;--good:#0a7f2e;--good-soft:#e3f4e8;--crit:#c42b2b;--crit-soft:#fbe7e7;--on:#ffffff;
+ --font:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --bg:#141518;--card:#1d1f23;--ink:#eceef1;--ink2:#b3b8c0;--ink3:#80868f;--line:#2e3137;
+ --accent:#6aa5f0;--accent-soft:#1f2c40;--good:#4cc46f;--good-soft:#16301f;--crit:#ff7070;--crit-soft:#3a1d1d;--on:#0b1626;color-scheme:dark}}
+:root[data-theme="dark"]{
+ --bg:#141518;--card:#1d1f23;--ink:#eceef1;--ink2:#b3b8c0;--ink3:#80868f;--line:#2e3137;
+ --accent:#6aa5f0;--accent-soft:#1f2c40;--good:#4cc46f;--good-soft:#16301f;--crit:#ff7070;--crit-soft:#3a1d1d;--on:#0b1626;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--font);
+ padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+main{max-width:640px;margin:0 auto;display:grid;gap:14px}
+.brand{font-size:.8rem;color:var(--ink3);display:flex;align-items:center;gap:8px}
+.brand img{width:22px;height:22px;border-radius:6px}
+.state{border-radius:14px;padding:18px;display:grid;gap:4px}
+.state b{font-size:1.35rem;line-height:1.3}
+.state span{font-size:.95rem}
+.state.ok{background:var(--good-soft);border:2px solid var(--good);color:var(--ink)}
+.state.ok b{color:var(--good)}
+.state.old{background:var(--crit-soft);border:2px solid var(--crit);color:var(--ink)}
+.state.old b{color:var(--crit)}
+.state.info{background:var(--accent-soft);border:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:6px;min-width:0}
+.card h1{font-size:1.2rem;margin:0;text-wrap:balance}
+.meta{font-size:.88rem;color:var(--ink2)}
+.btns{display:grid;gap:10px}
+.btn{display:block;text-align:center;text-decoration:none;border:0;border-radius:12px;padding:14px;font:inherit;font-weight:700;font-size:1rem;cursor:pointer}
+.btn.main{background:var(--accent);color:var(--on)}
+.btn.sub{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
+.btn.done{background:var(--good-soft);color:var(--good);border:1px solid var(--good)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ol.hist{margin:0;padding-left:20px;font-size:.88rem;color:var(--ink2);display:grid;gap:4px}
+ol.hist li.cur{color:var(--ink);font-weight:700}
+.foot{font-size:.75rem;color:var(--ink3);text-align:center}
+</style>
+</head>
+<body>
+<main id="m">
+  <div class="brand"><img src="icons/favicon.png" alt=""><span id="co">도면 확인</span></div>
+  <div class="state info"><b>불러오는 중…</b><span>잠시만 기다려 주세요.</span></div>
+</main>
+<script src="d.js"></script>
+</body>
+</html>

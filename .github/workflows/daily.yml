@@ -6,6 +6,7 @@
 # 저장소 Secrets (Settings → Secrets and variables → Actions):
 #   필수  GDRIVE_FOLDER_ID, GDRIVE_SERVICE_ACCOUNT, APP_PASSWORD
 #   선택  DEMO_PASSWORD (구글 플레이 심사용, 예시 자료만 열림)
+#   선택  DOC_SECRET, ACK_URL (도면 개정 카톡 배포·수령 확인·현장 QR)
 #   메일  SMTP_USER, SMTP_PASSWORD, BRIEF_TO
 # 앱 공개 설정: Settings → Pages → Source 를 'GitHub Actions' 로 (처음 한 번)
 name: 매일 업데이트
@@ -45,7 +46,7 @@ jobs:
           python-version: "3.12"
 
       - name: 패키지 설치
-        run: pip install pandas openpyxl google-api-python-client google-auth cryptography
+        run: pip install pandas openpyxl google-api-python-client google-auth cryptography qrcode
 
       - name: 어제 기록 불러오기
         uses: actions/cache/restore@v4
@@ -68,6 +69,9 @@ jobs:
         env:
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
           DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}   # 선택: 구글 플레이 심사·시연용 (예시 자료만 열림)
+          DOC_SECRET: ${{ secrets.DOC_SECRET }}         # 선택: 도면 배포 (도면대장 엑셀이 있을 때)
+          ACK_URL: ${{ secrets.ACK_URL }}               # 선택: 수령 확인 기록 주소 (구글 앱스 스크립트)
+          APP_URL: ${{ format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
         run: python exec_dashboard/scripts/build_app.py --out dist
 
       - name: 오늘 기록 저장

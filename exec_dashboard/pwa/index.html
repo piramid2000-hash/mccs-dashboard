@@ -65,13 +65,15 @@ button{font:inherit;color:inherit}
 #content > main.wrap{padding-top:14px}
 #content [data-tab]{display:none}
 #content.t-home [data-tab=home],#content.t-proj [data-tab=proj],#content.t-out [data-tab=out],
-#content.t-money [data-tab=money],#content.t-check [data-tab=check],#content [data-tab=all]{display:block}
+#content.t-money [data-tab=money],#content.t-check [data-tab=check],#content.t-docs [data-tab=docs],#content.t-labels [data-tab=labels],#content [data-tab=all]{display:block}
+#content.t-labels [data-tab=all]{display:none}
+@media print{#top,#nav,#banner{display:none!important}#content{padding:0}#content.t-labels{display:block}body{background:#fff}}
 #content.t-home section.kpis[data-tab=home]{display:grid}
 #content header[data-tab]{display:none!important}  /* 상단 바가 대신 보여 줌 */
 
 /* 하단 탭 */
 #nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);
- border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);
+ border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);
  padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
 .tab{height:var(--nav-h);border:0;background:transparent;display:grid;place-items:center;align-content:center;gap:2px;font-size:.7rem;color:var(--ink3);cursor:pointer;position:relative}
 .tab svg{width:24px;height:24px}
@@ -114,6 +116,7 @@ button{font:inherit;color:inherit}
     <button class="tab" data-go="proj"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h9M7 12h11M10 18h8"/></svg>공사</button>
     <button class="tab" data-go="out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V9l6 4V9l6 4V5h6v15z"/></svg>외주</button>
     <button class="tab" data-go="money"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>자금</button>
+    <button class="tab" data-go="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><rect x="9" y="12" width="4" height="4"/></svg>도면<span class="dot" id="docsDot" hidden></span></button>
     <button class="tab" data-go="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>점검<span class="dot" id="checkDot" hidden></span></button>
   </nav>
 </div>
