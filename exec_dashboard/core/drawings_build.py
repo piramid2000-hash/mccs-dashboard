@@ -31,6 +31,7 @@ CSS = """
 .dcard.recent{border-left:4px solid var(--accent)}
 .dcard .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .dcard .no{font-weight:700}
+.dcard .kind{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--o0);color:var(--ink2)}
 .dcard .rev{margin-left:auto;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
 .dcard .rev.off{background:var(--crit-soft);color:var(--crit)}
 .dcard .st{font-size:.82rem;color:var(--ink2)}
@@ -75,6 +76,9 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
                 warnings.append(("warn", f"[도면 {d.no} Rev {lt.rev}] 파일 '{lt.file}'을 폴더에서 찾지 못했습니다."))
             elif len(data) > MAX_PDF:
                 warnings.append(("warn", f"[도면 {d.no}] '{lt.file}'이 8MB 보다 커서 앱에 넣지 않았습니다."))
+            elif lt.extra.get("issued"):  # doc-qr-issuer 가 이미 QR 을 찍은(또는 서명 보존한) 발행본: 그대로
+                pdf_b64, pdf_name = base64.b64encode(data).decode(), lt.file
+                sent_pdf += 1
             else:
                 try:  # 배포용 PDF: 모든 쪽 모서리에 QR + 도면번호·Rev·승인일
                     data = stamp(data, L.link(base_url, secret, d.no, lt.rev),
@@ -90,7 +94,11 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
                 "revisions": [{"rev": r.rev, "date": r.date.isoformat() if r.date else None, "note": r.note}
                               for r in order],
                 "recipients": {k: recipients[k].name for r in d.revisions for k in r.recipients},
-                "pdf": pdf_b64, "pdf_name": pdf_name, "company": company, "generated": generated}
+                "pdf": pdf_b64, "pdf_name": pdf_name, "company": company, "generated": generated,
+                "kind": d.kind, "fields": lt.extra.get("fields") or {}, "issuer": lt.extra.get("issuer", ""),
+                "mode": lt.extra.get("mode", ""),
+                # 받은 파일 대조용 지문: 발행본 PDF 와 원본 파일 (어느 쪽을 받았든 확인 가능)
+                "sha": [s for s in (lt.extra.get("sha_issued"), lt.extra.get("sha_original")) if s]}
         iv = pysecrets.token_bytes(12)
         ct = AESGCM(L.doc_key(secret, d.no)).encrypt(iv, json.dumps(body, ensure_ascii=False).encode("utf-8"), None)
         (ddir / f"{L.public_id(secret, d.no)}.enc").write_text(json.dumps({
@@ -114,13 +122,15 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
                          f"<button type='button' data-share-url='{E(url)}' data-share-text='{E(msg)}'>카톡 보내기</button></li>")
         staff = L.link(base_url, secret, d.no, lt.rev)
         cards.append(
-            f"<div class='dcard{' recent' if row['recent'] else ''}'><div class='top'><span class='no'>{E(d.no)}</span>"
+            f"<div class='dcard{' recent' if row['recent'] else ''}'><div class='top'>"
+            + (f"<span class='kind'>{E(d.kind)}</span>" if d.kind != "도면" else "")
+            + f"<span class='no'>{E(d.no)}</span>"
             f"<span>{E(d.title)}</span><span class='rev{' off' if d.withdrawn else ''}'>"
             f"{'폐기' if d.withdrawn else 'Rev ' + E(lt.rev)}</span></div>"
             f"<div class='st'>{E(d.project)} · {_fmt(lt.date)} 승인{(' · ' + E(lt.note)) if lt.note else ''} · "
             f"<a href='{E(staff)}' target='_blank' rel='noopener'>도면 열기</a></div>"
             + (f"<ul class='rlist'>{''.join(items)}</ul>" if items else "<div class='st'>배포처 없음</div>") + "</div>")
-    head = (f"<h2>도면 배포 <small>최근 14일 개정 {len(st['recent'])}건 · 수령 미확인 {st['pending']}명</small></h2>"
+    head = (f"<h2>도면·문서 배포 <small>최근 14일 개정 {len(st['recent'])}건 · 수령 미확인 {st['pending']}명</small></h2>"
             "<div class='docs-tools'><button type='button' class='btn2' data-go-labels>QR 라벨 인쇄</button>"
             f"<span class='note'>{'수령 확인 주소 미설정: 받은 사람에게 [수령 확인] 버튼이 보이지 않습니다.' if not ack_url else '수령 확인은 다음 자동 업데이트 때 반영됩니다.'}</span></div>")
     tab = (f"<section data-tab='docs'>{head}<div class='list'>{''.join(cards) or '<p class=note>도면대장이 비어 있습니다.</p>'}</div></section>")
@@ -133,8 +143,9 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
         lt = d.latest
         qr = L.qr_svg(L.link(base_url, secret, d.no, lt.rev))
         labels.append(f"<div class='label'>{qr}<div><b>{E(d.no)}</b><span>{E(d.title)}</span>"
-                      f"<span>Rev {E(lt.rev)} · {_fmt(lt.date)} 승인</span><span class='hint'>스캔하면 최신 판인지 확인</span></div></div>")
+                      f"<span>{'' if d.kind == '도면' else E(d.kind) + ' · '}{'Rev' if d.kind == '도면' else '판'} {E(lt.rev)} · {_fmt(lt.date)}</span>"
+                      "<span class='hint'>스캔하면 최신 판인지 확인</span></div></div>")
     lab = ("<section data-tab='labels'><div class='labels-bar'><button type='button' class='btn2 solid' data-print-now>인쇄</button>"
-           "<button type='button' class='btn2' data-go-docs>도면 목록으로</button></div>"
+           "<button type='button' class='btn2' data-go-docs>목록으로</button></div>"
            f"<div class='labels'>{''.join(labels)}</div></section>")
     return {"html": tab + lab, "css": CSS, "summary": st, "pdfs": sent_pdf, "stamped": stamped, "count": len(drawings)}

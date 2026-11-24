@@ -30,6 +30,7 @@ class Revision:
     recipients: list
     row: int
     qr_pos: str = "우상"
+    extra: dict = field(default_factory=dict)   # 문서등록부: 발행본 여부·해시·핵심값·발행자
 
 
 @dataclass
@@ -39,6 +40,7 @@ class Drawing:
     project: str
     revisions: list = field(default_factory=list)
     withdrawn: bool = False
+    kind: str = "도면"
 
     @property
     def latest(self) -> Revision:
@@ -124,6 +126,59 @@ def parse_register(data: bytes, warnings: list) -> tuple[list, dict]:
     return list(drawings.values()), recipients
 
 
+DOC_HEADS = ["문서번호", "문서종류", "제목", "공사명", "판", "발행일", "개정내용", "핵심값", "원본파일", "발행본",
+             "확인표지", "발행방식", "원본SHA256", "발행본SHA256", "배포처", "상태", "발행자"]
+
+
+def parse_doc_registry(data: bytes, warnings: list, recipients: dict) -> list:
+    """'문서등록부' 시트 (doc-qr-issuer 스킬이 한 줄씩 기록). 발행본은 이미 QR 이 찍혀 있어 다시 찍지 않는다."""
+    wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+    ws = _find_ws(wb, "문서등록부")
+    rcp = _find_ws(wb, "배포처")
+    if rcp is not None:  # 이 파일에 배포처가 있으면 합침
+        heads, r0 = _table(rcp, "키")
+        if heads:
+            for r in range(r0 + 1, rcp.max_row + 1):
+                k = _clean(rcp.cell(r, heads["키"]).value)
+                if k and k not in recipients:
+                    g = lambda n: _clean(rcp.cell(r, heads[n]).value) if n in heads else ""  # noqa: E731
+                    recipients[k] = Recipient(k, g("이름") or k, g("회사"), g("역할"))
+    if ws is None:
+        return []
+    heads, r0 = _table(ws, "문서번호")
+    if not heads:
+        warnings.append(("error", "문서등록부 시트에서 '문서번호' 머리글을 찾지 못했습니다."))
+        return []
+    v = lambda r, k: ws.cell(r, heads[k]).value if k in heads else None  # noqa: E731
+    docs: dict[str, Drawing] = {}
+    for r in range(r0 + 1, ws.max_row + 1):
+        no = _clean(v(r, "문서번호"))
+        if not no:
+            continue
+        rev = _clean(v(r, "판")) or "1"
+        d = docs.setdefault(no, Drawing(no, _clean(v(r, "제목")), _clean(v(r, "공사명")), kind=_clean(v(r, "문서종류")) or "문서"))
+        d.title = _clean(v(r, "제목")) or d.title
+        keys = [k.strip() for k in re.split(r"[,，/·\s]+", _clean(v(r, "배포처"))) if k.strip()]
+        for k in keys:
+            if k not in recipients:
+                warnings.append(("warn", f"[문서 {no} 판 {rev}] 배포처 '{k}'가 배포처 시트에 없습니다."))
+        fields = {}
+        for part in re.split(r"[;\n]+", normalize_cell(v(r, "핵심값"))):
+            if "=" in part:
+                k, val = part.split("=", 1)
+                if k.strip():
+                    fields[k.strip()] = val.strip()
+        d.revisions.append(Revision(rev, to_date(v(r, "발행일")), _clean(v(r, "개정내용")), _clean(v(r, "발행본")),
+                                    [k for k in keys if k in recipients], r, extra={
+                                        "issued": True, "mode": _clean(v(r, "발행방식")), "fields": fields,
+                                        "sha_original": _clean(v(r, "원본SHA256")), "sha_issued": _clean(v(r, "발행본SHA256")),
+                                        "cover": _clean(v(r, "확인표지")), "issuer": _clean(v(r, "발행자")),
+                                        "original": _clean(v(r, "원본파일"))}))
+        if "폐기" in _clean(v(r, "상태")):
+            d.withdrawn = True
+    return list(docs.values())
+
+
 def parse_receipts(data: bytes) -> list[dict]:
     wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
     ws = _find_ws(wb, "수령확인")
@@ -180,21 +235,31 @@ def status(drawings: list, recipients: dict, receipts: list, asof: dt.date, rece
 
 def load_from_files(files, warnings: list):
     """폴더의 파일들 중 가장 최근 '도면대장'(+배포처) 과 '수령확인' 시트를 읽는다. files 는 최신순."""
-    drawings, recipients, receipts = [], {}, []
-    got_reg = got_ack = False
+    drawings, recipients, receipts, docs = [], {}, [], []
+    got_reg = got_ack = got_docs = False
     for f in files:
-        if got_reg and got_ack:
+        if got_reg and got_ack and got_docs:
             break
         try:
             data = f.load()
         except Exception:  # noqa: BLE001
             continue
         if not got_reg and has_sheet(data, "도면대장"):
-            drawings, recipients = parse_register(data, warnings)
+            drawings, rc = parse_register(data, warnings)
+            recipients.update(rc)
             got_reg = True
+        if not got_docs and has_sheet(data, "문서등록부"):
+            docs = parse_doc_registry(data, warnings, recipients)
+            got_docs = True
         if not got_ack and has_sheet(data, "수령확인"):
             receipts = parse_receipts(data)
             got_ack = True
+    known = {d.no for d in drawings}
+    for d in docs:
+        if d.no in known:
+            warnings.append(("check", f"[문서 {d.no}] 도면대장과 문서등록부에 같은 번호가 있습니다. 문서등록부 쪽을 건너뜁니다."))
+        else:
+            drawings.append(d)
     return drawings, recipients, receipts
 
 

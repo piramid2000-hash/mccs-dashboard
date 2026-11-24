@@ -51,7 +51,7 @@ def qr_svg(data: str) -> str:
     """QR 코드 SVG (현장 라벨용). 오류 정정 M: 라벨이 조금 긁혀도 읽힘."""
     import qrcode
     import qrcode.image.svg
-    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2,
+    img = qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=4,
                       error_correction=qrcode.constants.ERROR_CORRECT_M)
     buf = io.BytesIO()
     img.save(buf)

@@ -71,7 +71,7 @@ def _overlay(w: float, h: float, url: str, lines: list[str], pos: str) -> bytes:
     c.setStrokeColorRGB(0.12, 0.37, 0.75)
     c.setLineWidth(0.8)
     c.roundRect(x0, y0, bw, bh, 2 * mm, stroke=1, fill=1)
-    wd = QrCodeWidget(url, barLevel="M", barBorder=1)
+    wd = QrCodeWidget(url, barLevel="M", barBorder=4)
     bx = wd.getBounds()
     d = Drawing(qr, qr, transform=[qr / (bx[2] - bx[0]), 0, 0, qr / (bx[3] - bx[1]), 0, 0])
     d.add(wd)
@@ -109,3 +109,65 @@ def stamp(pdf: bytes, url: str, lines: list[str], position: str = "우상") -> b
     out = io.BytesIO()
     writer.write(out)
     return out.getvalue()
+
+
+def cover_sheet(url: str, title: str, rows: list[tuple[str, str]], note: str) -> bytes:
+    """A4 세로 'QR 확인 표지' 한 장. 전자서명·암호 PDF 처럼 원본을 고치면 안 될 때 함께 배포한다."""
+    from reportlab.lib.pagesizes import A4
+    font = _font()
+    if font == "Helvetica":
+        title = _ascii(title) or "Document check sheet"
+        rows = [(_ascii(k) or "-", _ascii(v) or "-") for k, v in rows]
+        note = _ascii(note)
+    w, h = A4
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle(title)
+    m = 22 * mm
+    c.setFillColorRGB(0.12, 0.37, 0.75)
+    c.rect(0, h - 14 * mm, w, 14 * mm, stroke=0, fill=1)
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont(font, 11)
+    c.drawString(m, h - 9.5 * mm, "문서 확인 표지" if font != "Helvetica" else "Document check sheet")
+    c.setFillColorRGB(0.07, 0.09, 0.12)
+    c.setFont(font, 18)
+    t = title
+    while pdfmetrics.stringWidth(t, font, 18) > w - 2 * m and len(t) > 4:
+        t = t[:-2] + "…"
+    c.drawString(m, h - 34 * mm, t)
+    q = 62 * mm
+    wd = QrCodeWidget(url, barLevel="M", barBorder=4)
+    bx = wd.getBounds()
+    d = Drawing(q, q, transform=[q / (bx[2] - bx[0]), 0, 0, q / (bx[3] - bx[1]), 0, 0])
+    d.add(wd)
+    renderPDF.draw(d, c, (w - q) / 2, h - 44 * mm - q)
+    c.setFont(font, 10)
+    c.setFillColorRGB(0.33, 0.35, 0.39)
+    s = "휴대폰 카메라로 스캔하면 원본·최신 여부를 확인합니다" if font != "Helvetica" else "Scan to check the original and its status"
+    c.drawCentredString(w / 2, h - 50 * mm - q, s)
+    y = h - 66 * mm - q
+    for k, v in rows:
+        c.setFillColorRGB(0.33, 0.35, 0.39); c.setFont(font, 9.5); c.drawString(m, y, k)
+        c.setFillColorRGB(0.07, 0.09, 0.12); c.setFont(font, 10.5)
+        vv = v
+        size = 10.5 if len(v) < 60 else 7.6  # 해시는 작게 한 줄
+        c.setFont(font, size)
+        while pdfmetrics.stringWidth(vv, font, size) > w - 2 * m - 34 * mm and len(vv) > 4:
+            vv = vv[:-2] + "…"
+        c.drawString(m + 34 * mm, y, vv)
+        c.setStrokeColorRGB(0.89, 0.88, 0.86); c.setLineWidth(0.5); c.line(m, y - 3 * mm, w - m, y - 3 * mm)
+        y -= 9.5 * mm
+    if note:
+        c.setFillColorRGB(0.33, 0.35, 0.39); c.setFont(font, 9)
+        words, line, ly = note.split(" "), "", y - 4 * mm
+        for wd_ in words:
+            test = (line + " " + wd_).strip()
+            if pdfmetrics.stringWidth(test, font, 9) > w - 2 * m:
+                c.drawString(m, ly, line); ly -= 5 * mm; line = wd_
+            else:
+                line = test
+        if line:
+            c.drawString(m, ly, line)
+    c.showPage()
+    c.save()
+    return buf.getvalue()
