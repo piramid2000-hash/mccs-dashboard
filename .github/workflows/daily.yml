@@ -46,7 +46,9 @@ jobs:
           python-version: "3.12"
 
       - name: 패키지 설치
-        run: pip install pandas openpyxl google-api-python-client google-auth cryptography qrcode
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-nanum > /dev/null   # 배포용 도면 PDF 의 한글 도장 글꼴
+          pip install pandas openpyxl google-api-python-client google-auth cryptography qrcode reportlab pypdf
 
       - name: 어제 기록 불러오기
         uses: actions/cache/restore@v4

@@ -102,6 +102,7 @@ DRAWING_GUIDE = [
     "4. 배포처: '배포처' 시트의 키를 쉼표로 (예: 탤런트엘엔지, 나라냉열기). 그 사람들에게 카톡 링크와 수령 확인이 생깁니다.",
     "5. 상태: 도면을 더 쓰지 않으면 '폐기'. 현장 QR 을 찍으면 '폐기된 도면' 경고가 뜹니다.",
     "6. 미리 채운 줄은 업무현황 엑셀의 도면 날짜로 만든 초안입니다. 도면번호·Rev 를 회사 실제 값으로 고쳐 주세요.",
+    "7. QR위치: 배포용 PDF 의 모든 쪽 모서리에 QR 도장이 찍힙니다 (기본 우상). 표제란·개정표를 가리면 우하·좌상·좌하로 바꾸세요.",
 ]
 
 
@@ -115,8 +116,8 @@ def build_drawing_template(projects=None, vendors=None) -> bytes:
     g.column_dimensions["A"].width = 120
 
     ws = wb.create_sheet("도면대장")
-    heads = ["도면번호", "도면명", "공사명", "Rev", "승인일", "개정내용", "파일", "배포처", "상태"]
-    widths = [22, 24, 22, 7, 12, 30, 30, 34, 8]
+    heads = ["도면번호", "도면명", "공사명", "Rev", "승인일", "개정내용", "파일", "배포처", "상태", "QR위치"]
+    widths = [22, 24, 22, 7, 12, 30, 30, 34, 8, 9]
     for c, (h, w) in enumerate(zip(heads, widths), 1):
         cell = ws.cell(1, c, h)
         cell.font, cell.fill, cell.border = Font(bold=True), HEAD_FILL, BOX
@@ -142,6 +143,9 @@ def build_drawing_template(projects=None, vendors=None) -> bytes:
     dv = DataValidation(type="list", formula1='"사용,폐기"', allow_blank=True)
     ws.add_data_validation(dv)
     dv.add(f"I2:I{r + 200}")
+    dq = DataValidation(type="list", formula1='"우상,우하,좌상,좌하"', allow_blank=True)
+    ws.add_data_validation(dq)
+    dq.add(f"J2:J{r + 200}")
 
     rs = wb.create_sheet("배포처")
     for c, (h, w) in enumerate(zip(["키", "이름", "회사", "역할"], [18, 14, 18, 18]), 1):

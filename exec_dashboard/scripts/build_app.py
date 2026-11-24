@@ -124,7 +124,8 @@ def main():
         payload["body"] = (head + docs["html"] + sep + tail) if sep else payload["body"] + docs["html"]
         payload["css"] += docs["css"]
         payload["docs_pending"] = docs["summary"]["pending"]
-        print(f"drawings: {docs['count']} docs, {docs['pdfs']} pdf, pending={docs['summary']['pending']}")
+        print(f"drawings: {docs['count']} docs, {docs['pdfs']} pdf ({docs['stamped']} QR-stamped), "
+              f"pending={docs['summary']['pending']}")
     box = encrypt(payload, password)
     (out / "data.enc").write_text(json.dumps(box), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")

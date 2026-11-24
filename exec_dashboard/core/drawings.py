@@ -29,6 +29,7 @@ class Revision:
     file: str
     recipients: list
     row: int
+    qr_pos: str = "우상"
 
 
 @dataclass
@@ -94,7 +95,7 @@ def parse_register(data: bytes, warnings: list) -> tuple[list, dict]:
         warnings.append(("error", "도면대장 시트에서 '도면번호' 머리글을 찾지 못했습니다."))
         return [], recipients
     col = lambda name: next((c for h, c in heads.items() if h.startswith(name)), None)  # noqa: E731
-    cols = {k: col(k) for k in ("도면번호", "도면명", "공사명", "Rev", "승인일", "개정내용", "파일", "배포처", "상태")}
+    cols = {k: col(k) for k in ("도면번호", "도면명", "공사명", "Rev", "승인일", "개정내용", "파일", "배포처", "상태", "QR위치")}
     v = lambda r, k: reg.cell(r, cols[k]).value if cols[k] else None  # noqa: E731
     for r in range(r0 + 1, reg.max_row + 1):
         no = _clean(v(r, "도면번호"))
@@ -117,7 +118,7 @@ def parse_register(data: bytes, warnings: list) -> tuple[list, dict]:
         if any(x.rev == rev for x in d.revisions):
             warnings.append(("check", f"[도면 {no}] Rev {rev} 가 두 번 적혀 있습니다."))
         d.revisions.append(Revision(rev, date, _clean(v(r, "개정내용")), _clean(v(r, "파일")),
-                                    [k for k in keys if k in recipients], r))
+                                    [k for k in keys if k in recipients], r, _clean(v(r, "QR위치")) or "우상"))
         if "폐기" in _clean(v(r, "상태")):
             d.withdrawn = True
     return list(drawings.values()), recipients

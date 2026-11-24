@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from . import doclinks as L
 from .drawings import status
+from .pdfstamp import stamp
 
 E = html.escape
 MAX_PDF = 8 * 1024 * 1024  # 이보다 큰 PDF 는 앱에 넣지 않음 (드라이브 원본 안내)
@@ -64,7 +65,7 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
     ddir.mkdir(parents=True, exist_ok=True)
     (ddir / "config.json").write_text(json.dumps({"ack": ack_url or "", "company": company}, ensure_ascii=False),
                                       encoding="utf-8")
-    sent_pdf = 0
+    sent_pdf = stamped = 0
     for d in drawings:
         lt = d.latest
         pdf_b64, pdf_name = None, ""
@@ -75,7 +76,13 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
             elif len(data) > MAX_PDF:
                 warnings.append(("warn", f"[도면 {d.no}] '{lt.file}'이 8MB 보다 커서 앱에 넣지 않았습니다."))
             else:
-                pdf_b64, pdf_name = base64.b64encode(data).decode(), lt.file
+                try:  # 배포용 PDF: 모든 쪽 모서리에 QR + 도면번호·Rev·승인일
+                    data = stamp(data, L.link(base_url, secret, d.no, lt.rev),
+                                 [d.no, f"Rev {lt.rev} · {_fmt(lt.date)} 승인", "QR 스캔: 최신 판인지 확인"], lt.qr_pos)
+                    stamped += 1
+                except Exception as e:  # noqa: BLE001 - 도장 실패해도 원본은 배포
+                    warnings.append(("warn", f"[도면 {d.no}] PDF 에 QR 을 찍지 못해 원본을 넣었습니다 ({type(e).__name__})."))
+                pdf_b64, pdf_name = base64.b64encode(data).decode(), lt.file.rsplit(".", 1)[0] + "_배포용.pdf"
                 sent_pdf += 1
         order = sorted(d.revisions, key=lambda r: (r.date or dt.date.min, r.row))
         body = {"no": d.no, "title": d.title, "project": d.project, "withdrawn": d.withdrawn,
@@ -130,4 +137,4 @@ def build_docs(out: Path, drawings: list, recipients: dict, receipts: list, *, s
     lab = ("<section data-tab='labels'><div class='labels-bar'><button type='button' class='btn2 solid' data-print-now>인쇄</button>"
            "<button type='button' class='btn2' data-go-docs>도면 목록으로</button></div>"
            f"<div class='labels'>{''.join(labels)}</div></section>")
-    return {"html": tab + lab, "css": CSS, "summary": st, "pdfs": sent_pdf, "count": len(drawings)}
+    return {"html": tab + lab, "css": CSS, "summary": st, "pdfs": sent_pdf, "stamped": stamped, "count": len(drawings)}
