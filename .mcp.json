@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "korean-patent": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${HOME}/.seion-mcp/korean-patent-mcp/build/index.js"],
+      "env": {
+        "KIPRIS_API_KEY": "${KIPRIS_KEY:-}"
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# 비밀 키 — 절대 커밋 금지
+.env
+**/.env
+
+# patent-search 스킬 실행 기록(호출 횟수 등)
+.claude/skills/patent-search/kipris_quota.json
