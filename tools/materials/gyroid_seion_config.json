@@ -1,0 +1,82 @@
+{
+  "_readme": "자이로이드 메타물질 DIW(페이스트 압출) 출력 설정. 'grade' 가 '가정' 인 값은 실측으로 바꿔야 결과를 보고서에 쓸 수 있다. 바꾼 뒤 'source' 에 측정 방법·날짜를 적는다.",
+
+  "formulation_wt_percent": {
+    "_grade": "가정 — 예시 배합. 실제 배합표로 교체",
+    "expanded_illite": 55.0,
+    "sodium_alginate": 3.0,
+    "C38H78O": 7.0,
+    "water": 35.0
+  },
+
+  "component_density_g_cm3": {
+    "expanded_illite": {"value": 2.75, "grade": "가정", "source": "일라이트 광물 골격밀도 대표값(2.6–2.9). 팽창 입자 내부 기공이 있으면 겉보기 밀도는 더 낮음 — 헬륨 피크노미터·아르키메데스로 측정"},
+    "sodium_alginate": {"value": 1.60, "grade": "가정", "source": "분말 진밀도 대표값 — 측정 권장"},
+    "C38H78O": {"value": 0.84, "grade": "가정", "source": "장쇄 지방알코올 고체 대표값 — 측정 권장"},
+    "water": {"value": 0.997, "grade": "문헌", "source": "25 °C"}
+  },
+
+  "C38H78O_thermal": {
+    "melting_point_C": null,
+    "grade": "요측정",
+    "note": "1-옥타트리아콘탄올로 가정 시 C28·C30 장쇄 알코올보다 녹는점이 높을 것으로 예상되나 확인값 없음 — DSC 로 측정 후 입력. 출력 온도가 녹는점 근처면 레올로지가 급변한다."
+  },
+
+  "particles_after_firing": {
+    "organics_burn_out": ["sodium_alginate", "C38H78O"],
+    "illite_particle_internal_porosity": {"value": 0.0, "grade": "가정", "note": "팽창 일라이트 입자 내부 기공률 — 수은압입·BET 로 측정 후 입력"}
+  },
+
+  "rheology_herschel_bulkley": {
+    "tau0_Pa": 300.0,
+    "K_Pa_s_n": 50.0,
+    "n": 0.45,
+    "grade": "가정",
+    "source": "예시값 — 'rheo' 명령으로 유변물성 측정 데이터를 피팅해 교체",
+    "crosslink_yield_multiplier": {"value": 1.0, "grade": "가정", "note": "Ca²⁺ 가교(분무·배스) 후 항복응력 증가 배수. 가교 전/후 항복응력 측정으로 결정"}
+  },
+
+  "shrinkage_linear": {
+    "drying": {"value": 0.05, "grade": "가정", "source": "건조 전후 시편 치수로 측정"},
+    "firing": {"value": 0.08, "grade": "가정", "source": "소성 전후 치수로 측정. 소성 안 하면 0"},
+    "fired": true
+  },
+
+  "wall_material": {
+    "_note": "벽(골격) 재료 자체의 물성. 입력하지 않으면(null) 결과는 상대값(E_rel, k_rel)으로만 나온다.",
+    "E_GPa": {"value": null, "grade": "요측정", "source": "같은 배합·공정의 꽉 찬 시편 압축·굽힘 시험"},
+    "k_W_mK": {"value": null, "grade": "요측정", "source": "꽉 찬 시편 열전도도(레이저 플래시·열선법)"},
+    "compressive_strength_MPa": {"value": null, "grade": "요측정"},
+    "poisson": {"value": 0.25, "grade": "가정"}
+  },
+
+  "printer": {
+    "nozzle_inner_diameter_mm": [0.84, 1.19, 1.55, 2.0],
+    "nozzle_equivalent_length_mm": 6.35,
+    "max_extrusion_pressure_kPa": 600.0,
+    "speed_range_mm_s": [5.0, 25.0],
+    "layer_height_to_nozzle_ratio": [0.5, 0.9],
+    "filament_width_to_nozzle_ratio": 1.0,
+    "overhang_capability_deg": {"value": 45.0, "grade": "가정", "source": "같은 페이스트로 오버행 시험편(15°~60° 단계 경사벽) 출력 후 처짐 없이 선 최대 각도로 교체"},
+    "grade": "가정 — 사용하는 프린터 사양으로 교체 (공압식 ~600 kPa, 피스톤·스크류식은 더 높음)"
+  },
+
+  "part": {
+    "size_mm": [30.0, 30.0, 30.0],
+    "unit_cell_range_mm": [4.0, 20.0],
+    "safety_factor_buildability": 1.5
+  },
+
+  "design_targets": {
+    "objective": "insulation",
+    "_objective_options": "insulation(열전도 최소 + 강성 최대) | lightweight(상대밀도 최소 + 강성 최대) | stiffness(강성 최대 + 출력시간 최소)",
+    "min_E_rel": 0.02,
+    "max_unsupported_area_fraction": 0.12,
+    "_max_unsupported_note": "자이로이드는 45° 초과 하향 면이 형상과 무관하게 약 11.7 % — 0.12 는 '재료 한계각 45° 이상이면 출력 가능' 가정. 시험 출력으로 조정",
+    "min_wall_over_filament": 0.9,
+    "min_pore_over_filament": 1.0,
+    "min_cell_over_filament": 6.0,
+    "min_cells_across": 4,
+    "_min_cells_note": "부품 최소 치수 안에 단위포가 이 개수 이상 — 그보다 적으면 격자 '유효물성'이 성립하지 않음(관행 4~5)"
+  }
+}
