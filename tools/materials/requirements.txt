@@ -1,3 +1,7 @@
 pymatgen==2026.10.24
 pycalphad==0.12.0
+ase==3.29.0
+pyscf==2.15.1
+geometric==1.1.1
+cantera==3.2.0
 pytest
