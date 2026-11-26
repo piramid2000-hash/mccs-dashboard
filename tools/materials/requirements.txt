@@ -10,3 +10,7 @@ torch==2.15.0
 mace-torch==0.3.17
 chgnet==0.4.2
 phonopy==4.11.0
+# B: 실험 데이터 해석
+lmfit==1.3.4
+pybaselines==1.2.1
+impedance==1.7.1
