@@ -1,0 +1,19 @@
+{
+  "_readme": "팽창일라이트 + 알지네이트 + C38H78O + 물 페이스트 배합 실험설계 공간. 범위는 예시(가정) — 연구 계획에 맞게 수정. 물은 100 에서 나머지를 뺀 값(balance).",
+  "factors": {
+    "expanded_illite": {"type": "float", "low": 45.0, "high": 65.0, "round": 1, "unit": "wt%"},
+    "sodium_alginate": {"type": "float", "low": 1.0, "high": 5.0, "round": 2, "unit": "wt%"},
+    "C38H78O": {"type": "float", "low": 0.0, "high": 12.0, "round": 1, "unit": "wt%"},
+    "CaCl2_spray_M": {"type": "float", "low": 0.0, "high": 0.5, "round": 2, "unit": "mol/L (출력 중 가교 분무 농도)"}
+  },
+  "derived": {
+    "water": {"type": "balance", "total": 100.0, "of": ["expanded_illite", "sodium_alginate", "C38H78O"], "low": 25.0, "high": 45.0, "unit": "wt%"}
+  },
+  "objectives": [
+    {"name": "tau0_Pa", "direction": "maximize", "note": "가교 후 정적 항복응력(레오미터) — 적층 높이 확보"},
+    {"name": "drying_shrinkage_pct", "direction": "minimize", "note": "건조 선수축"}
+  ],
+  "constraints": ["c_extrusion"],
+  "_constraints_note": "c_extrusion = (측정 압출압력 / 프린터 최대압력) - 1  → 0 이하이면 출력 가능. 기록 안 하면 제약 없음으로 처리.",
+  "n_startup": 6
+}
