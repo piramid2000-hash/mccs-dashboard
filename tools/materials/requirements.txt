@@ -5,3 +5,8 @@ pyscf==2.15.1
 geometric==1.1.1
 cantera==3.2.0
 pytest
+# A: 결정 시뮬레이션 (MLIP + 포논)
+torch==2.15.0
+mace-torch==0.3.17
+chgnet==0.4.2
+phonopy==4.11.0
