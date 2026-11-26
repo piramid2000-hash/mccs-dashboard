@@ -7,6 +7,14 @@
       "env": {
         "KIPRIS_API_KEY": "${KIPRIS_KEY:-}"
       }
+    },
+    "kordoc": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "kordoc@4.25.22", "mcp"],
+      "env": {
+        "KORDOC_OFFLINE": "1"
+      }
     }
   }
 }
