@@ -4,3 +4,7 @@
 
 # patent-search 스킬 실행 기록(호출 횟수 등)
 .claude/skills/patent-search/kipris_quota.json
+
+# Python 캐시
+__pycache__/
+*.pyc
